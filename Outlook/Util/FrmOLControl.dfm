@@ -11,6 +11,7 @@ object OLControlF: TOLControlF
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  OnActivate = FormActivate
   OnClose = FormClose
   OnCreate = FormCreate
   PixelsPerInch = 96
@@ -22,7 +23,6 @@ object OLControlF: TOLControlF
     Height = 25
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 649
   end
   object AdvOfficePager1: TAdvOfficePager
     Left = 0
@@ -30,7 +30,7 @@ object OLControlF: TOLControlF
     Width = 735
     Height = 564
     Align = alClient
-    ActivePage = AdvOfficePage1
+    ActivePage = LogPage
     ButtonSettings.CloseButtonPicture.Data = {
       424DA20400000000000036040000280000000900000009000000010008000000
       00006C000000C30E0000C30E00000001000000010000427B8400DEEFEF00FFFF
@@ -316,7 +316,6 @@ object OLControlF: TOLControlF
     ButtonSettings.ClosedListButtonHint = 'Closed Pages'
     ShowShortCutHints = False
     TabOrder = 1
-    ExplicitWidth = 649
     NextPictureChanged = False
     PrevPictureChanged = False
     object LogPage: TAdvOfficePage
@@ -424,19 +423,27 @@ object OLControlF: TOLControlF
         Align = alBottom
         ScrollBars = ssVertical
         TabOrder = 3
-        ExplicitWidth = 643
       end
       object Button3: TButton
         Left = 103
-        Top = 3
+        Top = 1
         Width = 81
         Height = 33
         Caption = 'InitVar'
         TabOrder = 4
         OnClick = Button3Click
       end
+      object Button4: TButton
+        Left = 103
+        Top = 42
+        Width = 81
+        Height = 33
+        Caption = 'GetSelectedMailItemFromExplorer'
+        TabOrder = 5
+        OnClick = Button4Click
+      end
     end
-    object AdvOfficePage1: TAdvOfficePage
+    object EmailPage: TAdvOfficePage
       Left = 1
       Top = 26
       Width = 733
@@ -497,24 +504,32 @@ object OLControlF: TOLControlF
       TabAppearance.BackGround.Color = 16767935
       TabAppearance.BackGround.ColorTo = clNone
       TabAppearance.BackGround.Direction = gdHorizontal
-      inline TOutlookEmailListFr1: TOutlookEmailListFr
+      inline OLEmailListFr: TOutlookEmailListFr
         Left = 2
         Top = 2
         Width = 729
         Height = 532
         Align = alClient
         TabOrder = 0
-        ExplicitLeft = 24
-        ExplicitTop = 48
+        ExplicitLeft = 2
+        ExplicitTop = 2
+        ExplicitWidth = 729
+        ExplicitHeight = 532
         inherited mailPanel1: TPanel
           Width = 729
           Height = 532
+          ExplicitWidth = 729
+          ExplicitHeight = 532
           inherited tabMail: TTabControl
             Width = 719
             Height = 442
+            ExplicitWidth = 719
+            ExplicitHeight = 442
             inherited StatusBar: TStatusBar
               Top = 419
               Width = 711
+              ExplicitTop = 419
+              ExplicitWidth = 711
             end
             inherited EmailTab: TAdvOfficeTabSet
               Width = 711
@@ -1131,10 +1146,13 @@ object OLControlF: TOLControlF
                   TabAppearance.BackGround.ColorTo = clNone
                   TabAppearance.BackGround.Direction = gdHorizontal
                 end>
+              ExplicitWidth = 711
             end
             inherited grid_Mail: TNextGrid
               Width = 711
               Height = 386
+              ExplicitWidth = 711
+              ExplicitHeight = 386
               inherited DBKey: TNxTextColumn
                 ParentFont = False
               end
@@ -1149,16 +1167,22 @@ object OLControlF: TOLControlF
           inherited panMailButtons: TPanel
             Top = 499
             Width = 719
+            ExplicitTop = 499
+            ExplicitWidth = 719
             inherited BitBtn1: TBitBtn
               Left = 630
+              ExplicitLeft = 630
             end
           end
           inherited panProgress: TPanel
             Left = 512
             Top = 477
+            ExplicitLeft = 512
+            ExplicitTop = 477
           end
           inherited Panel1: TPanel
             Width = 719
+            ExplicitWidth = 719
           end
         end
       end

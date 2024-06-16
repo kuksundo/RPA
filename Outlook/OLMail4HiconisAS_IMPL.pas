@@ -1,4 +1,4 @@
-unit OLMail4HiconisAS_IMPL;
+timerunit OLMail4HiconisAS_IMPL;
 
 interface
 
