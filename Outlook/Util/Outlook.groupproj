@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{F561D216-874E-453D-B597-0349B51E54AE}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="OLControlp.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="C:\Users\jhp\Downloads\Play-with-Delphi-and-outlook-main\Play-with-Delphi-and-outlook-main\MzOutLook\MzOutLook.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="OLControlp">
+        <MSBuild Projects="OLControlp.dproj"/>
+    </Target>
+    <Target Name="OLControlp:Clean">
+        <MSBuild Projects="OLControlp.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="OLControlp:Make">
+        <MSBuild Projects="OLControlp.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="OutlookDemo">
+        <MSBuild Projects="..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj"/>
+    </Target>
+    <Target Name="OutlookDemo:Clean">
+        <MSBuild Projects="..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="OutlookDemo:Make">
+        <MSBuild Projects="..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="MzOutLook">
+        <MSBuild Projects="C:\Users\jhp\Downloads\Play-with-Delphi-and-outlook-main\Play-with-Delphi-and-outlook-main\MzOutLook\MzOutLook.dproj"/>
+    </Target>
+    <Target Name="MzOutLook:Clean">
+        <MSBuild Projects="C:\Users\jhp\Downloads\Play-with-Delphi-and-outlook-main\Play-with-Delphi-and-outlook-main\MzOutLook\MzOutLook.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="MzOutLook:Make">
+        <MSBuild Projects="C:\Users\jhp\Downloads\Play-with-Delphi-and-outlook-main\Play-with-Delphi-and-outlook-main\MzOutLook\MzOutLook.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="OLControlp;OutlookDemo;MzOutLook"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="OLControlp:Clean;OutlookDemo:Clean;MzOutLook:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="OLControlp:Make;OutlookDemo:Make;MzOutLook:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

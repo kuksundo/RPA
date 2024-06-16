@@ -1,0 +1,37 @@
+[
+  uuid(42B5D5E9-6A47-4911-822A-58BD6F9BE26D),
+  version(1.0),
+  helpstring("OLAddin4HiconisAS Library")
+
+]
+library OLAddin4HiconisAS
+{
+
+  importlib("stdole2.tlb");
+
+  interface ICoOLAddin4HiconisAS;
+  coclass CoOLAddin4HiconisAS;
+
+
+  [
+    uuid(4A93F7BE-E3D1-49B3-97ED-2064896668C7),
+    version(1.0),
+    helpstring("Dispatch interface for CoOLAddin4HiconisAS Object"),
+    dual,
+    oleautomation
+  ]
+  interface ICoOLAddin4HiconisAS: IDispatch
+  {
+  };
+
+  [
+    uuid(E2D330BF-D398-4D0A-AAC1-F64AFE47A835),
+    version(1.0),
+    helpstring("CoOLAddin4HiconisAS Object")
+  ]
+  coclass CoOLAddin4HiconisAS
+  {
+    [default] interface ICoOLAddin4HiconisAS;
+  };
+
+};

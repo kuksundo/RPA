@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899-12-30 00:00:00.000.160,=C:\Users\Administrator\Documents\RAD Studio\Projects\Unit2.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.196,=C:\Users\Administrator\Documents\RAD Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.570,=E:\pjh\Dev\Lang\Delphi\common\UnitSerialCommWorker.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.490,E:\pjh\Dev\Lang\Delphi\Project\MacroManage\Arduino\ArduinoComm.dproj=C:\Users\Administrator\Documents\RAD Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.735,=C:\Users\Administrator\Documents\RAD Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.721,E:\pjh\Dev\Lang\Delphi\Project\MacroManage\Arduino\FrmArduinoComm.dfm=C:\Users\Administrator\Documents\RAD Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.721,E:\pjh\Dev\Lang\Delphi\Project\MacroManage\Arduino\FrmArduinoComm.pas=C:\Users\Administrator\Documents\RAD Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.344,=C:\Users\Administrator\Documents\RAD Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.326,=C:\Users\Administrator\Documents\RAD Studio\Projects\Unit1.pas</Transaction>
+  </Transactions>
+</BorlandProject>

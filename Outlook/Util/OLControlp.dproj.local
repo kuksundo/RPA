@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899-12-30 00:00:00.000.150,E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\OLControlWorker.pas=E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.635,E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\OLControlWorker.pas=E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\UnitOLControlWorker.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.171,=E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.499,=E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.076,E:\pjh\Dev\Lang\Delphi\Project\Outlook\common\UnitOutLookDataType.pas=E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\Unit1.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.400,=E:\pjh\Dev\Lang\Delphi\Project\Outlook\common\tlb\Outlook_TLB.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.930,=E:\pjh\Dev\Lang\Delphi\Common\UnitSynLog2.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.013,=E:\pjh\Dev\Lang\Delphi\Common\Frame\FrameOLEmailList4Ole.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.393,E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\FrmOLControl.dfm=E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\OLControl.dfm</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.823,=C:\Users\jhp\Documents\RAD Studio\Projects\Unit2.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.913,E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\OLControlp.dproj=C:\Users\jhp\Documents\RAD Studio\Projects\Project2.dproj</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.315,E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\OLControl.pas=C:\Users\jhp\Documents\RAD Studio\Projects\Unit2.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.315,E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\OLControl.dfm=C:\Users\jhp\Documents\RAD Studio\Projects\Unit2.dfm</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.393,E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\FrmOLControl.pas=E:\pjh\Dev\Lang\Delphi\Project\Outlook\Util\OLControl.pas</Transaction>
+    <Transaction>1899-12-30 00:00:00.000.888,=C:\Users\jhp\Documents\RAD Studio\Projects\Unit2.pas</Transaction>
+    <Transaction>2024-06-16 08:29:38.380,=E:\pjh\Dev\Lang\Delphi\Common\UnitOLEmailRecord2.pas</Transaction>
+    <Transaction>2024-06-16 08:39:38.832,=E:\pjh\Dev\Lang\Delphi\Project\GSManage\UnitElecServiceData2.pas</Transaction>
+  </Transactions>
+</BorlandProject>
