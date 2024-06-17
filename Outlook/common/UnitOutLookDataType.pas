@@ -14,9 +14,11 @@ type
   end;
 
   TEntryIdRecord = packed record
-    FEntryId,
-    FStoreId,
-    FStoreId4Move,
+    FEntryId,     //Email EntryId
+    FStoreId,     //Email StoreId
+    FEntryId4MoveRoot, //Folder EntryId
+    FStoreId4MoveRoot, //Folder StoreId
+    FFolderPath4Move, //Root Folder + ';' + SubFolder('\'·Î ±¸ºÐµÊ)
     FFolderPath,
     FNewEntryId,
     FSubject,
@@ -64,7 +66,8 @@ type
   TOLRespondKind = (
     olrkMAPIFolderList,
     olrkLog,
-    olrkSelMail4Explore
+    olrkSelMail4Explore,
+    olrkMoveMail2Folder
     );
 
 const
@@ -84,7 +87,8 @@ const
     (
       'MAPIFolder List',
       'Log',
-      'Selected Mail Item'
+      'Selected Mail Item',
+      'Move Mail to Folder'
     );
 
 var
@@ -107,6 +111,8 @@ begin
   FReceiveDate := 0;
   FMailItem := nil;
 end;
+
+{ TEntryIdRecord }
 
 initialization
   g_OLCommandKind.InitArrayRecord(R_OLCommandKind);
