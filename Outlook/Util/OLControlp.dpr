@@ -2,6 +2,7 @@ program OLControlp;
 
 uses
   Vcl.Forms,
+  mormot.db.raw.sqlite3.static,
   FrmOLControl in 'FrmOLControl.pas' {OLControlF},
   UnitOLControlWorker in 'UnitOLControlWorker.pas',
   UnitOutLookDataType in '..\common\UnitOutLookDataType.pas',

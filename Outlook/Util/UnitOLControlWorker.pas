@@ -23,9 +23,10 @@ type
 
     procedure InitMAPI;
 
-    function GetAllOLPublicFolderList(AIsOnlyFolderName: Boolean=False): TStringList;
+    //ALevelLimit: Folder depth 지정, 1 = Root folder에서 1단계 아래 Folder 까지만 반환함
+    function GetAllOLPublicFolderList(ALevelLimit: integer=0; AIsOnlyFolderName: Boolean=False): TStringList;
     procedure GetOLFolderList(AFolderKind: integer); overload;
-    procedure GetOLFolderList(AMAPIFolder: OLEVariant; AStrList: TStringList; AIsOnlyFolderName: Boolean); overload;
+    procedure GetOLFolderList(AMAPIFolder: OLEVariant; AStrList: TStringList; ALevelLimit: integer; AIsOnlyFolderName: Boolean); overload;
     procedure GetOLFolderList2TV(tvFolders: TTreeView);
     //AFolderPath: ';'로 root folder와 subfolder 명이 구분됨
     function CheckIfExistFolder(AFolderPath: string): Boolean;
@@ -67,7 +68,7 @@ var
   LFolderList: TStringList;
   LFolderFullName, LSubFolderName: string;
 begin
-  LFolderList := GetAllOLPublicFolderList(True);
+  LFolderList := GetAllOLPublicFolderList(-1, True);
 
   LFolderFullName := StrToken(AFolderPath, ';');
   LSubFolderName := StrToken(AFolderPath, ';');
@@ -171,7 +172,7 @@ begin
   end;
 end;
 
-function TOLControlWorker.GetAllOLPublicFolderList(AIsOnlyFolderName: Boolean): TStringList;
+function TOLControlWorker.GetAllOLPublicFolderList(ALevelLimit: integer; AIsOnlyFolderName: Boolean): TStringList;
 var
   i: integer;
   LMAPIFolder: OLEVariant;//MAPIFolder;
@@ -181,18 +182,21 @@ begin
   for i := 1 to FOLMAPINameSpace.Folders.Count do
   begin
     LMAPIFolder := FOLMAPINameSpace.Folders.Item[i];
-    GetOLFolderList(LMAPIFolder, Result, AIsOnlyFolderName);
+    GetOLFolderList(LMAPIFolder, Result, ALevelLimit, AIsOnlyFolderName);
   end;
 end;
 
 procedure TOLControlWorker.GetOLFolderList(AMAPIFolder: OLEVariant;
-  AStrList: TStringList; AIsOnlyFolderName: Boolean);
+  AStrList: TStringList; ALevelLimit: integer; AIsOnlyFolderName: Boolean);
 var
-  i: Integer;
+  i, LvlLimit: Integer;
   LMAPISubFolder: OLEVariant;
   LStr: string;
 begin
-  if AMAPIFolder.Folders.Count = 0 then
+  //하위 폴더가 없는 폴더만 반환함
+//  if AMAPIFolder.Folders.Count = 0 then
+  //ALevelLimit에서 지정한 Depth까지만 반환함
+  if ALevelLimit = 0 then
   begin
     if AIsOnlyFolderName then
       LStr := AMAPIFolder.FullFolderPath
@@ -203,11 +207,20 @@ begin
   end
   else
   begin
+    if AIsOnlyFolderName then
+      LStr := AMAPIFolder.FullFolderPath
+    else
+      LStr := AMAPIFolder.FullFolderPath + '=' + AMAPIFolder.EntryID + ';' + AMAPIFolder.StoreID;
+
+    AStrList.Add(LStr);
+
+    Dec(ALevelLimit);
+
     for i := 1 to AMAPIFolder.Folders.Count do
     begin
       LMAPISubFolder := AMAPIFolder.Folders.Item[i];
-      GetOLFolderList(LMAPISubFolder, AStrList, AIsOnlyFolderName);
-    end;
+      GetOLFolderList(LMAPISubFolder, AStrList, ALevelLimit, AIsOnlyFolderName);
+    end;//for
   end;
 end;
 
@@ -255,6 +268,7 @@ var
   LAddressEntry, //AddressEntry
   LRecipients, //Recipients
   LRecipient, //Recipient
+  LAttachments, //Attachments
   LFolder //Folder
   : OLEVariant;
   i,j: integer;
@@ -277,19 +291,21 @@ begin
     //Item Name이 grid_Mail Column Name과 일치해야 함
     LVar.LocalEntryId := LMailItem.EntryID;
     LVar.Subject := LMailItem.Subject;
-    LVar.SenderEmailAddress := LMailItem.SenderEmailAddress;
+    LVar.SenderEmail := LMailItem.SenderEmailAddress;
     LVar.SenderName := LMailItem.SenderName;
     LVar.CC := LMailItem.CC;
     LVar.BCC := LMailItem.BCC;
     LVar.HTMLBody := LMailItem.HTMLBody;
-    LVar.ReceivedTime := LMailItem.ReceivedTime;
+    LVar.RecvDate := LMailItem.ReceivedTime;
 
     LFolder := LMailItem.Parent;
     LVar.SavedOLFolderPath := LFolder.FullFolderPath;
     LVar.LocalStoreId := LFolder.StoreID;
-
-//    LAddressEntry := LMailItem.AddressEntry;
+    LVar.FolderEntryId := LFolder.EntryID;
     LRecipients := LMailItem.Recipients;
+
+    LAttachments := LMailItem.Attachments;
+    LVar.AttachCount := LAttachments.Count;
 
     LStr := '';
 
@@ -397,7 +413,7 @@ var
   LOLRespondRec: TOLRespondRec;
   LOmniMsg: TOmniMessage;
 begin
-  LFolderList := GetAllOLPublicFolderList();
+  LFolderList := GetAllOLPublicFolderList(2);
   try
     LOLRespondRec.FID := AMsg.MsgID;
     LOLRespondRec.FMsg := LFolderList.Text;
@@ -417,6 +433,8 @@ var
   LOLRespondRec: TOLRespondRec;
   LOmniMsg: TOmniMessage;
 begin
+  //Outlook에서 Select된 MailList가 Array Json형태로 반환됨
+  //grid_Mail Column Name과 동일한 Name임
   LMailList := GetSelectedMailItemsFromExplorer();
   try
     LOLRespondRec.FID := AMsg.MsgID;

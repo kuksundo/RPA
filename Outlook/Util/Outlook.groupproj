@@ -6,7 +6,7 @@
         <Projects Include="OLControlp.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj">
+        <Projects Include="..\..\..\GSManage\HiconisASManager\HiconisASManageR.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -26,23 +26,23 @@
     <Target Name="OLControlp:Make">
         <MSBuild Projects="OLControlp.dproj" Targets="Make"/>
     </Target>
-    <Target Name="OutlookDemo">
-        <MSBuild Projects="..\..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj"/>
+    <Target Name="HiconisASManageR">
+        <MSBuild Projects="..\..\..\GSManage\HiconisASManager\HiconisASManageR.dproj"/>
     </Target>
-    <Target Name="OutlookDemo:Clean">
-        <MSBuild Projects="..\..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj" Targets="Clean"/>
+    <Target Name="HiconisASManageR:Clean">
+        <MSBuild Projects="..\..\..\GSManage\HiconisASManager\HiconisASManageR.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="OutlookDemo:Make">
-        <MSBuild Projects="..\..\..\..\OpenSrc\lib\Drag-and-Drop-Component-Suite-for-Delphi-master\DemosWithoutInstall\Outlook\OutlookDemo.dproj" Targets="Make"/>
+    <Target Name="HiconisASManageR:Make">
+        <MSBuild Projects="..\..\..\GSManage\HiconisASManager\HiconisASManageR.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="OLControlp;OutlookDemo"/>
+        <CallTarget Targets="OLControlp;HiconisASManageR"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="OLControlp:Clean;OutlookDemo:Clean"/>
+        <CallTarget Targets="OLControlp:Clean;HiconisASManageR:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="OLControlp:Make;OutlookDemo:Make"/>
+        <CallTarget Targets="OLControlp:Make;HiconisASManageR:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

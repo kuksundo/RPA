@@ -7,9 +7,9 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
   AdvOfficePager,
   OtlCommon, OtlComm,
-  mormot.core.base,
+  mormot.core.base, mormot.core.variants,
   FrameOLEmailList4Ole,
-  UnitOutLookDataType;
+  UnitOutLookDataType, UnitOLEmailRecord2;
 
 type
   TOLControlF = class(TForm)
@@ -31,12 +31,14 @@ type
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure FormActivate(Sender: TObject);
+    procedure OLEmailListFrBitBtn1Click(Sender: TObject);
   private
   protected
     procedure InitVar();
     procedure DestroyVar();
   public
     procedure Log(AMsg: string);
+    procedure ShowEmailListFromSrchRec(ASearchRec: TOLEmailSrchRec);
   end;
 
 var
@@ -46,7 +48,7 @@ implementation
 
 {$R *.dfm}
 
-uses UnitSynLog2;
+uses UnitSynLog2, UnitNextGridUtil2;
 
 { TOLControlF }
 
@@ -97,6 +99,22 @@ begin
   Memo1.Lines.Add(AMsg);
 
   DoLog(AMsg, False, sllInfo);
+end;
+
+procedure TOLControlF.OLEmailListFrBitBtn1Click(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TOLControlF.ShowEmailListFromSrchRec(ASearchRec: TOLEmailSrchRec);
+var
+  LUtf8: RawUtf8;
+  LVar: variant;
+begin
+  LUtf8 := GetEmailList2JSONArrayFromSearchRec(ASearchRec);
+  LVar := _JSON(LUtf8);
+  GetListFromVariant2NextGrid(OLEmailListFr.grid_Mail, LVar, True, True, True, True);
+//  AddNextGridRowsFromVariant2(OLEmailListFr.grid_Mail, LVar);
 end;
 
 end.
