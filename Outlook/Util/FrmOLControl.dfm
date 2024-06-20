@@ -11,6 +11,7 @@ object OLControlF: TOLControlF
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  Position = poMainFormCenter
   OnActivate = FormActivate
   OnClose = FormClose
   OnCreate = FormCreate
@@ -1155,6 +1156,15 @@ object OLControlF: TOLControlF
               ExplicitTop = 33
               ExplicitWidth = 711
               ExplicitHeight = 386
+              inherited ProjectNo: TNxTextColumn
+                ParentFont = False
+              end
+              inherited ClaimNo: TNxTextColumn
+                ParentFont = False
+              end
+              inherited Description: TNxButtonColumn
+                ParentFont = False
+              end
               inherited DBKey: TNxTextColumn
                 ParentFont = False
               end
@@ -1170,26 +1180,6 @@ object OLControlF: TOLControlF
               inherited FolderEntryId: TNxTextColumn
                 ParentFont = False
               end
-              object ClaimNo: TNxTextColumn
-                Header.Font.Charset = DEFAULT_CHARSET
-                Header.Font.Color = clWindowText
-                Header.Font.Height = -11
-                Header.Font.Name = 'Tahoma'
-                Header.Font.Style = []
-                Position = 20
-                SortType = stAlphabetic
-                Visible = False
-              end
-              object ProjectNo: TNxTextColumn
-                Header.Font.Charset = DEFAULT_CHARSET
-                Header.Font.Color = clWindowText
-                Header.Font.Height = -11
-                Header.Font.Name = 'Tahoma'
-                Header.Font.Style = []
-                Position = 21
-                SortType = stAlphabetic
-                Visible = False
-              end
             end
           end
           inherited panMailButtons: TPanel
@@ -1199,11 +1189,10 @@ object OLControlF: TOLControlF
             ExplicitWidth = 719
             inherited BitBtn1: TBitBtn
               Left = 630
-              OnClick = OLEmailListFrBitBtn1Click
               ExplicitLeft = 630
             end
             inherited AeroButton1: TAeroButton
-              ExplicitLeft = 3
+              OnClick = OLEmailListFrAeroButton1Click
             end
           end
           inherited panProgress: TPanel
@@ -1219,7 +1208,7 @@ object OLControlF: TOLControlF
         end
         inherited ImageList16x16: TImageList
           Bitmap = {
-            494C01012F009800B80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+            494C01012F009800C80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
             000000000000360000002800000040000000C0000000010020000000000000C0
             0000000000000000000000000000000000000000000000000000000000000000
             0000000000000000000000000000000000000000000000000000000000000000

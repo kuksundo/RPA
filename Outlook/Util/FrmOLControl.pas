@@ -9,7 +9,7 @@ uses
   OtlCommon, OtlComm,
   mormot.core.base, mormot.core.variants,
   FrameOLEmailList4Ole,
-  UnitOutLookDataType, UnitOLEmailRecord2;
+  UnitOutLookDataType, UnitOLEmailRecord2, NxColumns, NxColumnClasses;
 
 type
   TOLControlF = class(TForm)
@@ -23,8 +23,8 @@ type
     Memo1: TMemo;
     Button3: TButton;
     EmailPage: TAdvOfficePage;
-    OLEmailListFr: TOutlookEmailListFr;
     Button4: TButton;
+    OLEmailListFr: TOutlookEmailListFr;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Button1Click(Sender: TObject);
@@ -32,13 +32,13 @@ type
     procedure Button4Click(Sender: TObject);
     procedure FormActivate(Sender: TObject);
     procedure OLEmailListFrBitBtn1Click(Sender: TObject);
+    procedure OLEmailListFrAeroButton1Click(Sender: TObject);
   private
   protected
     procedure InitVar();
     procedure DestroyVar();
   public
     procedure Log(AMsg: string);
-    procedure ShowEmailListFromSrchRec(ASearchRec: TOLEmailSrchRec);
   end;
 
 var
@@ -101,20 +101,15 @@ begin
   DoLog(AMsg, False, sllInfo);
 end;
 
+procedure TOLControlF.OLEmailListFrAeroButton1Click(Sender: TObject);
+begin
+  OLEmailListFr.AeroButton1Click(Sender);
+
+end;
+
 procedure TOLControlF.OLEmailListFrBitBtn1Click(Sender: TObject);
 begin
   Close;
-end;
-
-procedure TOLControlF.ShowEmailListFromSrchRec(ASearchRec: TOLEmailSrchRec);
-var
-  LUtf8: RawUtf8;
-  LVar: variant;
-begin
-  LUtf8 := GetEmailList2JSONArrayFromSearchRec(ASearchRec);
-  LVar := _JSON(LUtf8);
-  GetListFromVariant2NextGrid(OLEmailListFr.grid_Mail, LVar, True, True, True, True);
-//  AddNextGridRowsFromVariant2(OLEmailListFr.grid_Mail, LVar);
 end;
 
 end.

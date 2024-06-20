@@ -33,6 +33,13 @@ type
     //AFolderPath: ';'로 root folder와 subfolder 명이 구분됨
     function CreateFolder2Path(AFolderPath: TEntryIdRecord): OLEVariant;//Folder;
     function GetOLMAPIFolderList4Recursive(AMAPIFolder: OLEVariant): OLEVariant;
+    function GetOLMAPIFolderByFolderName(AMAPIFolder: OLEVariant; AFolderPath: string): OLEVariant;
+    //Folder Full Path를 이용하여 Folder 객체 반환함
+    function GetFolderObjectFromPath(AFolderPath: string): OLEVariant;
+    //AFolderPath: Root Folder Path + ';' + SubFolder Path
+    function GetFolderPathFromRootNSubFolder(AFolderPath: string): string;
+    //Folder로 부터 Root 포함 Full Path를 반환함
+    function GetFolderFullPathByFolderObj(AMAPIFolder: OLEVariant): string;
 
     function GetSelectedMailItemsFromExplorer: RawUTF8; //Json Array 형식으로 반환 함
 
@@ -66,16 +73,13 @@ uses UnitStringUtil;
 function TOLControlWorker.CheckIfExistFolder(AFolderPath: string): Boolean;
 var
   LFolderList: TStringList;
-  LFolderFullName, LSubFolderName: string;
+  LFolderFullName: string;
 begin
   LFolderList := GetAllOLPublicFolderList(-1, True);
 
-  LFolderFullName := StrToken(AFolderPath, ';');
-  LSubFolderName := StrToken(AFolderPath, ';');
+  LFolderFullName := GetFolderPathFromRootNSubFolder(AFolderPath);
 
-  LSubFolderName := LSubFolderName.Replace('/', '\');
-
-  Result := LFolderList.IndexOf(LFolderFullName + LSubFolderName) > -1;
+  Result := LFolderList.IndexOf(LFolderFullName) > -1;
 end;
 
 constructor TOLControlWorker.Create(commandQueue, responseQueue,
@@ -118,6 +122,7 @@ begin
       begin
         if LMAPIFolder.Folders.Item[i].Name = LStr then
         begin
+          LMAPIFolder := LMAPIFolder.Folders.Item[i];
           LExistFolder := True;
           Break;
         end;
@@ -186,6 +191,66 @@ begin
   end;
 end;
 
+function TOLControlWorker.GetFolderFullPathByFolderObj(
+  AMAPIFolder: OLEVariant): string;
+var
+  LFolder: OLEVariant;
+begin
+  Result := AMAPIFolder.Name;
+
+  LFolder := AMAPIFolder.Parent;
+
+//  while (not VarIsNull(LFolder)) and (LFolder.Class_ <> olNamespace) do
+//  while (not VarIsNull(LFolder)) and (not VarIsNull(LFolder.Parent)) do
+//  while (not VarIsNull(LFolder)) and (LFolder.Session.CurrentUser.Name <> 'kuksundo') do
+  while (not VarIsNull(LFolder)) and (not Supports(LFolder, _NameSpace)) do
+  begin
+    Result := LFolder.Name + '\' + Result;
+    LFolder := LFolder.Parent;
+  end;
+end;
+
+function TOLControlWorker.GetFolderObjectFromPath(
+  AFolderPath: string): OLEVariant;
+var
+  i: integer;
+  LFolderName: string;
+//  LMAPIFolder: OLEVariant;//MAPIFolder;
+begin
+  //Folder Path에서 '\\' 제거
+  StrToken(AFolderPath, '\');
+  StrToken(AFolderPath, '\');
+
+  LFolderName := StrToken(AFolderPath, '\');
+
+  for i := 1 to FOLMAPINameSpace.Folders.Count do
+  begin
+    Result := FOLMAPINameSpace.Folders.Item[i];
+
+    if Result.Name = LFolderName then
+      Result := GetOLMAPIFolderByFolderName(Result, AFolderPath);
+
+    if not VarIsNull(Result) then
+      Break;
+  end;
+end;
+
+function TOLControlWorker.GetFolderPathFromRootNSubFolder(
+  AFolderPath: string): string;
+var
+  LRootFolderName, LSubFolderName: string;
+begin
+  LRootFolderName := StrToken(AFolderPath, ';');
+  LRootFolderName := IncludeTrailingPathDelimiter(LRootFolderName);
+
+  LSubFolderName := StrToken(AFolderPath, ';');
+  TrimLeftChar(LSubFolderName, '\');
+
+  LSubFolderName := LSubFolderName.Replace('/', '\');
+
+  Result := LRootFolderName + LSubFolderName;
+end;
+
 procedure TOLControlWorker.GetOLFolderList(AMAPIFolder: OLEVariant;
   AStrList: TStringList; ALevelLimit: integer; AIsOnlyFolderName: Boolean);
 var
@@ -240,6 +305,38 @@ var
   end;
 begin
   _LoadFolder(nil, FOLMAPINameSpace.Folders);
+end;
+
+function TOLControlWorker.GetOLMAPIFolderByFolderName(AMAPIFolder: OLEVariant;
+  AFolderPath: string): OLEVariant;
+var
+  i: integer;
+  LFolderName: string;
+  LMAPIFolder: OLEVariant;
+begin
+  Result := null;
+
+  if AFolderPath = '' then
+    Result := AMAPIFolder
+  else
+  begin
+    LFolderName := StrToken(AFolderPath, '\');
+
+    if LFolderName <> '' then
+    begin
+      for i := 1 to AMAPIFolder.Folders.Count do
+      begin
+        LMAPIFolder := AMAPIFolder.Folders.Item[i];
+
+        if LMAPIFolder.Name = LFolderName then
+        begin
+          LMAPIFolder := GetOLMAPIFolderByFolderName(LMAPIFolder, AFolderPath);
+          Result := LMAPIFolder;
+          Break;
+        end;
+      end;
+    end;
+  end;
 end;
 
 function TOLControlWorker.GetOLMAPIFolderList4Recursive(
@@ -457,6 +554,7 @@ var
   LOLRespondRec: TOLRespondRec;
   LOmniMsg: TOmniMessage;
   LValue: TOmniValue;
+  LFolderPath: string;
 begin
   //LDoc : {grid_Mail Column Name, vaule} 의 Json 형식임
 //  LDict.Json := AMsg.MsgData.AsString;
@@ -466,7 +564,11 @@ begin
   LMailItem := FOLMAPINameSpace.GetItemFromID(LEntryIdRecord.FEntryId, LEntryIdRecord.FStoreId);
 
   if CheckIfExistFolder(LEntryIdRecord.FFolderPath4Move) then
-    LFolder := FOLMAPINameSpace.GetFolderFromId(LEntryIdRecord.FEntryId4MoveRoot, LEntryIdRecord.FStoreId4MoveRoot)
+  begin
+//    LFolder := FOLMAPINameSpace.GetFolderFromId(LEntryIdRecord.FEntryId4MoveRoot, LEntryIdRecord.FStoreId4MoveRoot);
+    LFolderPath := GetFolderPathFromRootNSubFolder(LEntryIdRecord.FFolderPath4Move);
+    LFolder := GetFolderObjectFromPath(LFolderPath);
+  end
   else
     LFolder := CreateFolder2Path(LEntryIdRecord);
 
@@ -481,7 +583,8 @@ begin
 
     LDict.U['NewEntryId'] := LMailItem.EntryId;
     LDict.U['NewStoreId'] := LFolder.StoreId;
-    LDict.U['NewStoreId4Store'] := LFolder.EntryId;
+    LDict.U['NewEntryId4Folder'] := LFolder.EntryId;
+    LDict.U['SavedOLFolderPath'] := GetFolderFullPathByFolderObj(LFolder);
 
     LOLRespondRec.FID := Ord(olrkMoveMail2Folder);
     //이동한 Mail의 EntryId와 StoreId를 저장함
