@@ -1,4 +1,4 @@
-unit FrmOLControl;
+unit FrmOLEmailList;
 
 interface
 
@@ -12,7 +12,7 @@ uses
   UnitOutLookDataType, UnitOLEmailRecord2, NxColumns, NxColumnClasses;
 
 type
-  TOLControlF = class(TForm)
+  TOLEmailListF = class(TForm)
     Panel1: TPanel;
     AdvOfficePager1: TAdvOfficePager;
     LogPage: TAdvOfficePage;
@@ -42,7 +42,7 @@ type
   end;
 
 var
-  OLControlF: TOLControlF;
+  OLEmailListF: TOLEmailListF;
 
 implementation
 
@@ -52,46 +52,46 @@ uses UnitSynLog2, UnitNextGridUtil2;
 
 { TOLControlF }
 
-procedure TOLControlF.Button1Click(Sender: TObject);
+procedure TOLEmailListF.Button1Click(Sender: TObject);
 begin
   OLEmailListFr.SendCmd2WorkerThrd(olckGetFolderList, TOmniValue.CastFrom(''));
 end;
 
-procedure TOLControlF.Button3Click(Sender: TObject);
+procedure TOLEmailListF.Button3Click(Sender: TObject);
 begin
   OLEmailListFr.SendCmd2WorkerThrd(olckInitVar, TOmniValue.CastFrom(''));
 end;
 
-procedure TOLControlF.Button4Click(Sender: TObject);
+procedure TOLEmailListF.Button4Click(Sender: TObject);
 begin
   OLEmailListFr.SendCmd2WorkerThrd(olckGetSelectedMailItemFromExplorer, TOmniValue.CastFrom(''));
 end;
 
-procedure TOLControlF.DestroyVar;
+procedure TOLEmailListF.DestroyVar;
 begin
 end;
 
-procedure TOLControlF.FormActivate(Sender: TObject);
+procedure TOLEmailListF.FormActivate(Sender: TObject);
 begin
   OLEmailListFr.SetLogProc(Log);
 end;
 
-procedure TOLControlF.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TOLEmailListF.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   DestroyVar();
 end;
 
-procedure TOLControlF.FormCreate(Sender: TObject);
+procedure TOLEmailListF.FormCreate(Sender: TObject);
 begin
   InitVar();
 end;
 
-procedure TOLControlF.InitVar;
+procedure TOLEmailListF.InitVar;
 begin
   InitSynLog();
 end;
 
-procedure TOLControlF.Log(AMsg: string);
+procedure TOLEmailListF.Log(AMsg: string);
 begin
   if Memo1.Lines.Count > MEMO_LOG_MAX_LINE_COUNT then
     Memo1.Lines.Clear;
@@ -101,13 +101,13 @@ begin
   DoLog(AMsg, False, sllInfo);
 end;
 
-procedure TOLControlF.OLEmailListFrAeroButton1Click(Sender: TObject);
+procedure TOLEmailListF.OLEmailListFrAeroButton1Click(Sender: TObject);
 begin
   OLEmailListFr.AeroButton1Click(Sender);
 
 end;
 
-procedure TOLControlF.OLEmailListFrBitBtn1Click(Sender: TObject);
+procedure TOLEmailListF.OLEmailListFrBitBtn1Click(Sender: TObject);
 begin
   Close;
 end;

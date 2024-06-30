@@ -11,6 +11,7 @@ type
   TOLRespondRec = packed record
     FID: integer;
     FMsg: string;
+    FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
   end;
 
   TEntryIdRecord = packed record
@@ -32,6 +33,7 @@ type
     FIgnoreEmailMove2WorkFolder: Boolean; //True = Working Folder로 이동 안함
     //True = Move하고자 선택한 폴더 아래에 HullNo Folder 생성 후 생성된 폴더에 메일 이동 함
     FIsCreateHullNoFolder: Boolean;
+    FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
 //    FIsShowMailContents: Boolean; //True = Mail Display
   end;
 
@@ -64,6 +66,7 @@ type
     olckShowMailContents,
     olckFinal);
   TOLRespondKind = (
+    olrkInitVar,
     olrkMAPIFolderList,
     olrkLog,
     olrkSelMail4Explore,
@@ -85,6 +88,7 @@ const
     );
   R_OLRespondKind : array[Low(TOLRespondKind)..High(TOLRespondKind)] of string =
     (
+      'Init Outlook OK',
       'MAPIFolder List',
       'Log',
       'Selected Mail Item',

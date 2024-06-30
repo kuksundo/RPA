@@ -51,6 +51,7 @@ type
     procedure ProcessCommandProc(AMsg: TOmniMessage); override;
     procedure ProcessRespondData(AMsg: TOmniMessage);
 
+    procedure ProcessInitOutlook(AMsg: TOmniMessage);
     procedure ProcessGetFolderList(AMsg: TOmniMessage);
     procedure ProcessGetSelectedMailItemFromExplorer(AMsg: TOmniMessage);
     procedure ProcessShowMailContents(AMsg: TOmniMessage);
@@ -486,7 +487,9 @@ end;
 procedure TOLControlWorker.ProcessCommandProc(AMsg: TOmniMessage);
 begin
   case TOLCommandKind(AMsg.MsgID) of
-    olckInitVar: InitVar();
+    olckInitVar: begin
+      ProcessInitOutlook(AMsg);
+    end;
     olckAddAppointment: ;
     olckGetFolderList: begin
       ProcessGetFolderList(AMsg);
@@ -512,10 +515,15 @@ var
 begin
   LFolderList := GetAllOLPublicFolderList(2);
   try
+    FormHandle := AMsg.MsgData.AsInteger;
+
     LOLRespondRec.FID := AMsg.MsgID;
     LOLRespondRec.FMsg := LFolderList.Text;
+    LOLRespondRec.FSenderHandle := FormHandle;
+
     LValue := TOmniValue.FromRecord(LOLRespondRec);
     LOmniMsg := TOmniMessage.Create(Ord(olrkMAPIFolderList), LValue);
+
     ProcessRespondData(LOmniMsg);
   finally
     LFolderList.Free;
@@ -534,6 +542,9 @@ begin
   //grid_Mail Column Name과 동일한 Name임
   LMailList := GetSelectedMailItemsFromExplorer();
   try
+    //FSenderHandle을 받음
+    LOLRespondRec := AMsg.MsgData.ToRecord<TOLRespondRec>;
+    FormHandle := LOLRespondRec.FSenderHandle;
     LOLRespondRec.FID := AMsg.MsgID;
     LOLRespondRec.FMsg := Utf8ToString(LMailList);
     LValue := TOmniValue.FromRecord(LOLRespondRec);
@@ -541,6 +552,18 @@ begin
     ProcessRespondData(LOmniMsg);
   finally
   end;
+end;
+
+procedure TOLControlWorker.ProcessInitOutlook(AMsg: TOmniMessage);
+var
+  LOmniMsg: TOmniMessage;
+begin
+  FormHandle := AMsg.MsgData.AsInteger;
+  InitVar();
+
+  LOmniMsg := TOmniMessage.Create(Ord(olrkMAPIFolderList), TOmniValue.CastFrom(True));
+
+  ProcessRespondData(LOmniMsg);
 end;
 
 procedure TOLControlWorker.ProcessMoveMail2Folder(AMsg: TOmniMessage);
@@ -589,6 +612,8 @@ begin
     LOLRespondRec.FID := Ord(olrkMoveMail2Folder);
     //이동한 Mail의 EntryId와 StoreId를 저장함
     LOLRespondRec.FMsg := LDict.ToJson(jsonUnquotedPropNameCompact);
+    LOLRespondRec.FSenderHandle := LEntryIdRecord.FSenderHandle;
+    FormHandle := LEntryIdRecord.FSenderHandle;
 //    LOLRespondRec.FMsg := '{"NewEntryId"=' + LMailItem.EntryId + ',"NewStoreId"=' + LMailItem.StoreId + '}';
     LValue := TOmniValue.FromRecord(LOLRespondRec);
     LOmniMsg := TOmniMessage.Create(Ord(olrkMoveMail2Folder), LValue);
@@ -613,6 +638,8 @@ var
 //  LStore: OLEVariant;//Store;
 begin
   LEntryIdRecord := AMsg.MsgData.ToRecord<TEntryIdRecord>;
+  FormHandle := LEntryIdRecord.FSenderHandle;
+
 //  LStore := FOLMAPINameSpace.GetStoreFromID(LEntryIdRecord.FStoreId);
   ShowMailContents(LEntryIdRecord.FEntryId, LEntryIdRecord.FStoreId);
 
