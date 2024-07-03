@@ -10,7 +10,7 @@ uses System.SysUtils, Classes,
 type
   THiconisASTaskEditConfig = record
     // False = FrameOLEmaiList4Ole에서 TOLControlWorker 사용 안 함(HiconisASManager에서 Start함)
-    IsUseOLControlWorker: Boolean;
+    IsUseOLControlWorkerFromEmailList: Boolean;
     IsDocFromInvoiceManage: Boolean;
     IPCMQFromOLEmail, //FrameOLEmaiList4Ole에서 HiconisASManager로 OL Command 요청
     IPCMQ2OLEmail: TOmniMessageQueue; //HiconisASManager에서 FrameOLEmaiList4Ole로 OL Respond 전송
@@ -117,7 +117,7 @@ procedure DestroyOLEmailMsg;
 
 implementation
 
-uses UnitFolderUtil2, VarRecUtils, Forms;
+uses UnitFolderUtil2, VarRecUtils, Forms, UnitVariantUtil;
 
 procedure InitOLEmailMsgClient(AExeName: string; ADBFileName: string);
 var
@@ -476,7 +476,7 @@ begin
         //GUID.msg 형식으로 저장됨
         LEmailMsg.SavedMsgFileName := LVar.SavedMsgFileName;
         LEmailMsg.AttachCount := StrToIntDef(LVar.AttachCount, 0);
-        LEmailMsg.RecvDate := TimeLogFromDateTime(StrToDateTime(LVar.RecvDate));
+        LEmailMsg.RecvDate := TimeLogFromDateTime(VarToDateWithTimeLog(LVar.RecvDate));//TimeLogFromDateTime(StrToDateTime(LVar.RecvDate));
 //        LStr := LVar.ContainData;
         LEmailMsg.ContainData := StrToIntDef(LVar.ContainData, 0);//g_ContainData4Mail.ToType(LStr);
 //        LStr := LVar.ProcDirection;

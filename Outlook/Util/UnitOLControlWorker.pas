@@ -3,7 +3,7 @@ unit UnitOLControlWorker;
 interface
 
 uses Windows, Winapi.Messages, System.SysUtils, System.SyncObjs, System.Classes,
-  Variants, System.Win.ComObj, Vcl.ComCtrls, ActiveX,
+  Variants, System.Win.ComObj, Vcl.ComCtrls, ActiveX, DateUtils,
   mormot.core.json, mormot.core.data, mormot.core.base, mormot.core.variants,
   mormot.core.text,
   OtlComm, OtlCommon,
@@ -15,7 +15,8 @@ type
   strict private
     FOutlook,
     FOLMAPINameSpace,
-    FOLMAPIFolders: OLEVariant;
+    FOLMAPIFolders,
+    FOLCalendarFolder: OLEVariant;
 
     procedure RespondEnqueueAndNotifyMainComm(AMsgId: word;
       const AValue: TOmniValue; const AWinMsg: integer); overload;
@@ -42,10 +43,11 @@ type
     function GetFolderFullPathByFolderObj(AMAPIFolder: OLEVariant): string;
 
     function GetSelectedMailItemsFromExplorer: RawUTF8; //Json Array 형식으로 반환 함
-
     procedure MoveMail2Folder(AOriginalEntryId, AOriginalStoreId, AFolderPath: string);
-
     procedure ShowMailContents(AEntryId, AStoreId: string);
+
+    procedure AddAppointment2OL(AMAPIFolder: OLEVariant);
+
   protected
     procedure Execute; override;
     procedure ProcessCommandProc(AMsg: TOmniMessage); override;
@@ -56,6 +58,7 @@ type
     procedure ProcessGetSelectedMailItemFromExplorer(AMsg: TOmniMessage);
     procedure ProcessShowMailContents(AMsg: TOmniMessage);
     procedure ProcessMoveMail2Folder(AMsg: TOmniMessage);
+    procedure ProcessAddAppointment(AMsg: TOmniMessage);
   public
     constructor Create(commandQueue, responseQueue, sendQueue: TOmniMessageQueue; AFormHandle: THandle);
     destructor Destroy(); override;
@@ -67,9 +70,42 @@ type
 
 implementation
 
-uses UnitStringUtil;
+uses UnitStringUtil, UnitMiscUtil;
 
 { TOLControlWorker }
+
+procedure TOLControlWorker.AddAppointment2OL(AMAPIFolder: OLEVariant);
+var
+  LAppointmentItem:OLEVariant;
+begin
+  if VarIsNull(FOLCalendarFolder) or VarIsEmpty(FOLCalendarFolder) then
+  begin
+    FOLCalendarFolder := FOLMAPINameSpace.GetDefaultFolder(olFolderCalendar);
+  end;
+
+  LAppointmentItem := FOutlook.CreateItem(olAppointmentItem);
+
+  if VarIsNull(LAppointmentItem) then
+  begin
+    try
+      LAppointmentItem.MeetingStatus := 1; //olMeeting = 1; set to 0 if there are no recipients/attendees
+      LAppointmentItem.Subject := 'Outlook Meeting Item';
+      LAppointmentItem.Body := 'This Microsoft Outlook calendar meeting was created programmatically by Delphi!' + #13#10 + 'Calendar meeting invitations were sent to required and optional attendees.';
+      LAppointmentItem.Location := 'My office';
+      LAppointmentItem.AllDayEvent := False;
+      LAppointmentItem.Start := EncodeDateTime(2022, 8, 7, 10, 0, 0, 0);
+      LAppointmentItem.End := EncodeDateTime(2022, 8, 7, 10, 50, 0, 0);
+      LAppointmentItem.Recipients.Add('recipient1@example.com'); //change the recipient email address
+      LAppointmentItem.Recipients.Add('recipient2@example.com'); //change the recipient email address
+      LAppointmentItem.RequiredAttendees := 'recipient1@example.com'; //change the recipient email address
+      LAppointmentItem.OptionalAttendees := 'recipient2@example.com'; //change the recipient email address
+      LAppointmentItem.Save;
+      LAppointmentItem.Send;
+    finally
+      LAppointmentItem := Unassigned;
+    end;
+  end;
+end;
 
 function TOLControlWorker.CheckIfExistFolder(AFolderPath: string): Boolean;
 var
@@ -394,7 +430,7 @@ begin
     LVar.CC := LMailItem.CC;
     LVar.BCC := LMailItem.BCC;
     LVar.HTMLBody := LMailItem.HTMLBody;
-    LVar.RecvDate := LMailItem.ReceivedTime;
+    LVar.RecvDate := LMailItem.ReceivedTime;//VarFromDateTime()
 
     LFolder := LMailItem.Parent;
     LVar.SavedOLFolderPath := LFolder.FullFolderPath;
@@ -447,11 +483,11 @@ begin
   begin
     try
       FOutlook := GetActiveOleObject('outlook.application');
-      Log2MainComm('OutLook Activated!');
+//      Log2MainComm('OutLook Activated!');
     except
       try
         FOutlook := CreateOleObject('outlook.application');
-        Log2MainComm('OutLook Created!');
+//        Log2MainComm('OutLook Created!');
       except
         // Unable to access or start OUTLOOK
         Log2MainComm(
@@ -484,13 +520,18 @@ begin
 
 end;
 
+procedure TOLControlWorker.ProcessAddAppointment(AMsg: TOmniMessage);
+begin
+
+end;
+
 procedure TOLControlWorker.ProcessCommandProc(AMsg: TOmniMessage);
 begin
   case TOLCommandKind(AMsg.MsgID) of
     olckInitVar: begin
       ProcessInitOutlook(AMsg);
     end;
-    olckAddAppointment: ;
+    olckAddAppointment: ProcessAddAppointment(AMsg);
     olckGetFolderList: begin
       ProcessGetFolderList(AMsg);
     end;
@@ -557,11 +598,15 @@ end;
 procedure TOLControlWorker.ProcessInitOutlook(AMsg: TOmniMessage);
 var
   LOmniMsg: TOmniMessage;
+  LValue: TOmniValue;
+  LOLRespondRec: TOLRespondRec;
 begin
   FormHandle := AMsg.MsgData.AsInteger;
   InitVar();
 
-  LOmniMsg := TOmniMessage.Create(Ord(olrkMAPIFolderList), TOmniValue.CastFrom(True));
+//  LOLRespondRec.FSenderHandle :=
+  LValue := TOmniValue.FromRecord(LOLRespondRec);
+//  LOmniMsg := TOmniMessage.Create(Ord(olrkMAPIFolderList), LValue);
 
   ProcessRespondData(LOmniMsg);
 end;
