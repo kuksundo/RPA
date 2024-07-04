@@ -89,6 +89,7 @@ end;
 procedure TOLEmailListF.InitVar;
 begin
   InitSynLog();
+  OLEmailListFr.FDefaultMoveFolder := '\\jhpark@hyundai-gs.com(2024)\HiCONIS(2024)';
 end;
 
 procedure TOLEmailListF.Log(AMsg: string);

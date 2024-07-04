@@ -105,15 +105,15 @@ procedure DestroyOLEmailMsg;
 function GetOLEmailList2JSONArrayFromDBKey(ADBKey: TID): RawUTF8;
 function GetEmailList2JSONArrayFromSearchRec(ASearchRec: TOLEmailSrchRec): RawUTF8;
 function GetSQLOLEmailMsgFromSearchRec(ASearchRec: TOLEmailSrchRec): TSQLOLEmailMsg;
-procedure GetContainDataNDirFromID(AID: integer; out AConData, AProcDir: integer);
+procedure GetContainDataNDirFromID(AEntryID: string; out AConData, AProcDir: integer);
 //function GetEmailCountFromDBKey(ADBKey: string): integer;
 function GetEmailCountFromTaskID(ATaskID: TID): integer;
 
 function AddOLMail2DBFromDroppedMail(AJson: string;
   AAddedMailList: TStringList; AFromRemote: Boolean=False): Boolean;
 function UpdateOLMail2DBFromMovedMail(AMovedMailList: TStringList; AFromRemote: Boolean=False): Boolean;
-function DeleteOLMail2DBFromID(AID: integer): Boolean;
-function DeleteOLMail2DBFromDBKey(ADBKey: TID): Boolean;
+function DeleteOLMail2DBFromTaskID(AID: integer): Boolean;
+function DeleteOLMail2DBFromEntryID(AEntryID: string): Boolean;
 
 implementation
 
@@ -337,7 +337,7 @@ begin
   end;
 end;
 
-procedure GetContainDataNDirFromID(AID: integer; out AConData, AProcDir: integer);
+procedure GetContainDataNDirFromID(AEntryID: string; out AConData, AProcDir: integer);
 var
   i: integer;
   LEmailMsg: TSQLOLEmailMsg;
@@ -345,7 +345,7 @@ begin
   AConData := -1;
   AProcDir := -1;
 
-  LEmailMsg := TSQLOLEmailMsg.Create(g_OLEmailMsgDB.Orm, 'ID = ?', [AID]);
+  LEmailMsg := TSQLOLEmailMsg.Create(g_OLEmailMsgDB.Orm, 'LocalEntryId = ?', [AEntryID]);
 
   try
     if LEmailMsg.FillOne then
@@ -571,14 +571,14 @@ begin
   end;
 end;
 
-function DeleteOLMail2DBFromID(AID: integer): Boolean;
+function DeleteOLMail2DBFromTaskID(AID: integer): Boolean;
 begin
-  Result := g_OLEmailMsgDB.Delete(TSQLOLEmailMsg, AID);
+  Result := g_OLEmailMsgDB.Delete(TSQLOLEmailMsg, 'TaskID = ?', [AID]);
 end;
 
-function DeleteOLMail2DBFromDBKey(ADBKey: TID): Boolean;
+function DeleteOLMail2DBFromEntryID(AEntryID: string): Boolean;
 begin
-  Result := g_OLEmailMsgDB.Delete(TSQLOLEmailMsg, 'TaskID = ?', [ADBKey]);
+  Result := g_OLEmailMsgDB.Delete(TSQLOLEmailMsg, 'LocalEntryID = ?', [AEntryID]);
 end;
 
 initialization
