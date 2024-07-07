@@ -16,7 +16,7 @@ uses
   OtlComm,
   OtlCommon, TimerPool,
   mormot.core.base, mormot.orm.base, mormot.core.variants, mormot.core.json,
-  thundax.lib.actions_pjh, CPort, HotKeyManager, SendInputHelper,
+  thundax.lib.actions_pjh, CPort, HotKeyManager, UnitSendInputHelper,
   UnitMacroListClass2, UnitNextGridFrame, Vcl.Buttons, Vcl.ToolWin, UnitAction2,
   ralarm, GpCommandLineParser, UnitMacroConfigClass2, UnitSerialCommThread,
   Winapi.Hooks, FrmEventCaptureConfig, System.Actions;
@@ -437,7 +437,7 @@ procedure TMacroManageF.AddKeyBdEvent2SIHelper(Message: TMessage);
 var
   LKeyBdHookStruct: KBDLLHOOKSTRUCT;
 begin
-  LKeyBdHookStruct := pKBDLLHOOKSTRUCT(Message.wParam)^;
+  LKeyBdHookStruct := pKBDLLHOOKSTRUCT(Message.lParam)^;
 
   with LKeyBdHookStruct do
   begin
@@ -797,7 +797,7 @@ var
 begin
   LMacroManagement := FMacroManageList.Items[AIndex] as TMacroManagement;
 
-  for Input in FSendInputHelper do
+  for Input in FSendInputHelper.SendInputList do
   begin
     AssignInput2ActionList(Input, LMacroManagement);
   end;
@@ -1097,9 +1097,9 @@ procedure TMacroManageF.CopySIHelperNInsertDelay(
 var
   Input: TInput;
 begin
-  for Input in FSendInputHelper do
+  for Input in FSendInputHelper.SendInputList do
   begin
-    ADestSIHelper.Add(Input);
+    ADestSIHelper.SendInputList.Add(Input);
     ADestSIHelper.AddDelay(ADelay);
   end;
 end;
@@ -1571,7 +1571,7 @@ begin
   if not FileExists (AFileName) then
     Exit;
 
-  FSendInputHelper.Clear;
+  FSendInputHelper.SendInputList.Clear;
   ST1 := TStringList.Create;
   ST2 := TStringList.Create;
 
@@ -1606,7 +1606,7 @@ begin
         end;
       end;//case
 
-      FSendInputHelper.Add(LInput);
+      FSendInputHelper.SendInputList.Add(LInput);
     end;
   finally
     ST1.Free;
@@ -2092,7 +2092,7 @@ var
   S: string;
   LInput: TInput;
 begin
-  if FSendInputHelper.Count = 0 then
+  if FSendInputHelper.SendInputList.Count = 0 then
     Exit;
 
   if AFileName = '' then
@@ -2101,11 +2101,11 @@ begin
   ST1 := TStringList.Create;
   ST2 := TStringList.Create;
   try
-    ST1.Values['MessageCount'] := inttostr(FSendInputHelper.Count);
+    ST1.Values['MessageCount'] := inttostr(FSendInputHelper.SendInputList.Count);
     ST2.Add(ST1.CommaText);
     S := '';
 
-    for LInput in FSendInputHelper do
+    for LInput in FSendInputHelper.SendInputList do
     begin
       ST1.Clear;
 
@@ -2128,7 +2128,7 @@ begin
         end;
         INPUT_KEYBOARD: begin
 //          p := LInput.ki.wVk;
-          ST1.Values['wVk'] := GetCharFromVKey(LInput.ki.wVk);
+          ST1.Values['wVk'] := InttoStr(LInput.ki.wVk);//GetUnicodeFromVKey(LInput.ki.wVk);// GetCharFromVKey(LInput.ki.wVk);
           ST1.Values['Flags'] := InttoStr(LInput.ki.dwFlags);
           ST1.Values['ScanCode'] := InttoStr(LInput.ki.wScan);
           ST1.Values['Time'] := InttoStr(LInput.ki.time);
@@ -2548,7 +2548,8 @@ var
 begin
   LLKeyBoardHook := PLowLevelKeyboardHook(Message.LParam)^;
   LMsg := PMessage(Message.LParam)^;
-  AddEvent2Buf(LMsg);
+  AddKeyBdEvent2SIHelper(Message);
+//  AddEvent2Buf(LMsg);
   Caption := '[' + LLKeyBoardHook.KeyName.KeyExtName + ']';
 end;
 
@@ -2558,7 +2559,8 @@ var
   Lpt: TPoint;
 begin
   LMouseHook := PLowLevelMouseHook(Message.LParam)^;
-  AddEvent2Buf(Message);
+  AddMouseEvent2SIHelper(Message);
+//  AddEvent2Buf(Message);
   GetCursorPos(Lpt);
   Caption := '[X: ' + IntToStr(LMouseHook.HookStruct.Pt.X) +
              ', Y: ' + IntToStr(LMouseHook.HookStruct.Pt.Y) + ']' +

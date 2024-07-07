@@ -11,7 +11,8 @@ type
     FNoScreenSaver,//화면 보호기 방지 Check
     FCheckExecuteTime //실행시각 Check
     : Boolean;
-    FSetExecuteTime: string;
+    FSetExecuteTime,
+    FMacroJson: string;
   public
     [CLPName('m'), CLPLongName('macro'), CLPDescription('macro file name'), CLPDefault('')]
     property MacroFileName: string read FMacroFileName write FMacroFileName;
@@ -23,6 +24,8 @@ type
     property CheckExecuteTime: boolean read FCheckExecuteTime write FCheckExecuteTime;
     [CLPName('t'), CLPLongName('SetExtTime', 'Set Execute Time'), CLPDescription('Set Execute Time')]
     property SetExecuteTime: string read FSetExecuteTime write FSetExecuteTime;
+    [CLPName('j'), CLPLongName('macrojson', 'macro json'), CLPDescription('macro json')]
+    property MacroJson: string read FMacroJson write FMacroJson;
   end;
 
 implementation
