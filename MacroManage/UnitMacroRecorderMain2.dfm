@@ -670,7 +670,7 @@ object MacroManageF: TMacroManageF
         TabStop = True
         OnAfterEdit = MacroGridAfterEdit
         OnSelectCell = MacroGridSelectCell
-        object seq: TNxTextColumn
+        object seq: TNxIncrementColumn
           Alignment = taCenter
           DefaultWidth = 45
           Font.Charset = DEFAULT_CHARSET
@@ -1255,7 +1255,7 @@ object MacroManageF: TMacroManageF
         end
         inherited ImageList1: TImageList
           Bitmap = {
-            494C0101150018000C0110001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+            494C0101150018002C0110001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
             0000000000003600000028000000400000006000000001002000000000000060
             0000000000000000000000000000000000000000000000000000000000000000
             0000000000000000000000000000000000000000000000000000000000000000
@@ -2079,6 +2079,19 @@ object MacroManageF: TMacroManageF
         Caption = 'Serial Comm Config'
         OnClick = CommportConfig1Click
       end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object SaveasBase641: TMenuItem
+        Caption = 'Save as Base64'
+        OnClick = SaveasBase641Click
+      end
+      object N7: TMenuItem
+        Caption = '-'
+      end
+      object Close1: TMenuItem
+        Caption = 'Close'
+      end
     end
     object Macro1: TMenuItem
       Caption = 'Macro'
@@ -2136,7 +2149,7 @@ object MacroManageF: TMacroManageF
     Left = 67
     Top = 111
     Bitmap = {
-      494C010115001800900110001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
+      494C010115001800B00110001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000006000000001002000000000000060
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -2970,9 +2983,30 @@ object MacroManageF: TMacroManageF
       Hint = 'Macro Record'#47484' '#53685#54644' '#51089#49457#54620' Input List'#47484' Action Item'#51004#47196' '#48320#44221#54632
       OnClick = AddActionFromSIHelperFile1Click
     end
+    object N9: TMenuItem
+      Caption = '-'
+    end
     object ChangeMacroName1: TMenuItem
       Caption = 'Change Macro Name'
       OnClick = ChangeMacroName1Click
+    end
+    object SetMacroConfig1: TMenuItem
+      Caption = 'Set Macro Config'
+      OnClick = SetMacroConfig1Click
+    end
+    object N8: TMenuItem
+      Caption = '-'
+    end
+    object CopySelectedMacro1: TMenuItem
+      Caption = 'Copy Selected Macro'
+      OnClick = CopySelectedMacro1Click
+    end
+    object N5: TMenuItem
+      Caption = '-'
+    end
+    object DeleteSelectedMacro1: TMenuItem
+      Caption = 'Delete Selected Macro'
+      OnClick = DeleteSelectedMacro1Click
     end
   end
 end

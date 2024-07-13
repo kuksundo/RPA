@@ -37,11 +37,12 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, Buttons, ComCtrls, StdCtrls, thundax.lib.actions_pjh, ExtCtrls,
-  Vcl.Samples.Spin, Vcl.Menus, UnitMacroListClass2;
+  Vcl.Samples.Spin, Vcl.Menus,
+  mormot.core.collections,
+  UnitMacroListClass2, PngBitBtn;
 
 type
   TfrmActions = class(TForm)
-    btnAddAction: TButton;
     ActionTypeCombo: TComboBox;
     Label1: TLabel;
     PageControl1: TPageControl;
@@ -83,6 +84,7 @@ type
     Label12: TLabel;
     ExecModeRG: TRadioGroup;
     Label13: TLabel;
+    btnAddAction: TPngBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnSequenceClick(Sender: TObject);
@@ -105,14 +107,19 @@ type
     procedure SetSelectedActionDataFromForm;
     function GetActionsFromIdx: TActions;
     procedure AddOrChangeActionFromForm(AIsAdd: Boolean);
+    function GetActionDescByActionType(AType: TActionType): string;
   public
     FBreak : Boolean;
-    FActionCollection: TActionCollection;
-    FActionlist: TActionList;
+//    FActionCollection: TActionCollection;
+    FActionItemList: IList<TActionItem>;//TActionCollection;
+    FActionItemListResult: IList<TActionItem>;//TActionCollection;
+    FActionlist: IList<IAction>;//TActionList;
     FCurrentActionType: TActionType;
-    FIsUpdateMousePos: Boolean;
+    FIsUpdateMousePos,
+    FIsDisplayCustomDesc: Boolean;
 
     procedure CopyActionList(ADest: TActionList);
+    procedure AssignActionItemListResultFromLB();
   end;
 
 var
@@ -308,8 +315,9 @@ end;
 
 procedure TfrmActions.FormCreate(Sender: TObject);
 begin
-  FActionList := TActionList.Create;
-  FActionCollection := TActionCollection.Create;
+  FActionList := Collections.NewList<IAction>;// TActionList.Create;
+  FActionItemList := Collections.NewList<TActionItem>;
+//  FActionCollection := TActionCollection.Create;
 
   g_ActionType.SetType2List(ActionTypeCombo.Items);
 end;
@@ -318,19 +326,25 @@ procedure TfrmActions.FormDestroy(Sender: TObject);
 var
   i: integer;
 begin
+//  FActionItemList.Clear;
 //  for i := 0 to FActionCollection.Count - 1 do
 //  begin
 //    TActions(FActionCollection.Item[i]).ActionItem.Free;
 //    TActions(FActionCollection.Item[i]).Free;
 //  end;
 
-  for i := 0 to FActionList.Count - 1 do
-  begin
-    TActionItem(FActionList[i]).Free;
-  end;
+//  for i := 0 to FActionList.Count - 1 do
+//  begin
+//    TActionItem(FActionList[i]).Free;
+//  end;
 
-  FActionCollection.Free;
-  FreeAndNil(FActionList);
+//  FActionCollection.Free;
+//  FreeAndNil(FActionList);
+end;
+
+function TfrmActions.GetActionDescByActionType(AType: TActionType): string;
+begin
+
 end;
 
 function TfrmActions.GetActionsFromIdx: TActions;
@@ -409,7 +423,7 @@ var
   action: IAction;
   LStr: string;
 //  actionType: TActionType;
-  x, y: Integer;
+  x, y, LIdx: Integer;
   LItem: TActionItem;
   LActions: TActions;
 begin
@@ -437,37 +451,49 @@ begin
           y := StrToIntDef(edtY.Text, -1);
           LItem.XPos := x;
           LItem.YPos := y;
+
+          LItem.ActionDesc := 'Mouse Pos (X: ' + edtX.Text + ', Y: ' + edtY.Text + ')';
         end;
       atMouseLClick, atMouseLDClick, atMouseRClick, atMouseRDClick:
         begin
-
+          LItem.ActionDesc := g_ActionType.ToString(LItem.ActionType);
         end;
       atMouseLDown, atMouseLUp, atMouseRDown, atMouseRUp, atMouseMDown, atMouseMUp:
         begin
-
+          LItem.ActionDesc := g_ActionType.ToString(LItem.ActionType);
         end;
-      atKey, atMessage:
+      atKey:
         begin
           if cmbStrokes.Text <> '' then
-            LStr := GetKeyStr4SendKey2(cmbStrokes.Text)
-          else
+            LStr := GetKeyStr4SendKey2(cmbStrokes.Text);
+
+          LItem.InputText := LStr;
+          LItem.ActionDesc := 'Message: ' + LStr;
+        end;
+      atMessage:
+        begin
           if edtFreeText.Text <> '' then
             LStr := edtFreeText.Text;
 
           LItem.InputText := LStr;
+          LItem.ActionDesc := 'Message: ' + LStr;
         end;
       atWait:
         begin
           if edtTime.Value <> 0 then
             LItem.WaitSec := edtTime.Value;
+
+          LItem.ActionDesc := 'Wait (' + IntToStr(LItem.WaitSec) + ' msec)';
         end;
       atMessage_Dyn:
         begin
           LItem.GridIndex := StrToIntDef(edtIndex.Text, -1);
+          LItem.ActionDesc := 'Grid Index: ' + edtIndex.Text;
         end;
       atExecuteFunc:
         begin
           LItem.InputText := edtFreeText.Text;
+          LItem.ActionDesc := 'Function Name: ' + edtFreeText.Text;
         end;
     end;
 
@@ -476,10 +502,18 @@ begin
 
     if AIsAdd then
     begin
-      action := TActionItem.AddActionItem2List(FActionList, LItem);
-      LItem.ActionDesc := action.toString;
-      LActions := FActionCollection.Add;
-      LActions.ActionItem.Assign(LItem);
+//      action := TActionItem.AddActionItem2List(FActionList, LItem);
+//      LItem.ActionDesc := action.toString;
+//      LActions := FActionCollection.Add;
+//      LActions.ActionItem.Assign(LItem);
+      LIdx := FActionItemList.Add(LItem);
+
+      if FIsDisplayCustomDesc then
+        LStr := LItem.CustomDesc
+      else
+        LStr := LItem.ActionDesc;
+
+      ActionEditLB.Items.AddObject(LStr, FActionItemList.Items[LIdx]);
     end
     else
     begin
@@ -487,10 +521,29 @@ begin
     end;
 
   finally
-    LItem.Free;
+//    LItem.Free;
   end;
+end;
 
-  ActionEditLB.Items.AddObject(action.toString, LActions);
+procedure TfrmActions.AssignActionItemListResultFromLB;
+var
+  j: integer;
+  LList: IList<TActionItem>;
+  LSrcActItem, LDestActItem: TActionItem;
+begin
+  if not Assigned(FActionItemListResult) then
+    FActionItemListResult := Collections.NewList<TActionItem>
+  else
+    FActionItemListResult.Clear;
+
+  for j := 0 to ActionEditLB.Count - 1 do
+  begin
+    LDestActItem := TActionItem.Create;
+    LSrcActItem := ActionEditLB.Items.Objects[j] as TActionItem;
+    LSrcActItem.AssignTo(LDestActItem);
+
+    FActionItemListResult.Add(LDestActItem);
+  end;
 end;
 
 procedure TfrmActions.btnDeleteClick(Sender: TObject);
@@ -505,8 +558,9 @@ begin
     begin
       if LAryInt[i] < ActionEditLB.Count then
       begin
-        FActionList.Remove(FActionList.Items[LAryInt[i]]);
-        FActionCollection.Delete(LAryInt[i]);
+//        FActionItemList.Delete(i);
+//        FActionList.Remove(FActionList.Items[LAryInt[i]]);
+//        FActionCollection.Delete(LAryInt[i]);
         ActionEditLB.Items.Delete(LAryInt[i]);
       end;
     end;
@@ -637,7 +691,7 @@ end;
 procedure TfrmActions.CopyActionList(ADest: TActionList);
 begin
   ADest.Clear;
-  ADest.InsertRange(0, FActionList);
+//  ADest.InsertRange(0, FActionList);
 end;
 
 procedure TfrmActions.edtXKeyDown(Sender: TObject; var Key: Word;

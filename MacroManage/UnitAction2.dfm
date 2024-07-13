@@ -136,8 +136,8 @@ object frmActions: TfrmActions
     Caption = 'iterations:'
   end
   object btnDelete: TSpeedButton
-    Left = 281
-    Top = 47
+    Left = 280
+    Top = 71
     Width = 23
     Height = 22
     Glyph.Data = {
@@ -170,8 +170,8 @@ object frmActions: TfrmActions
     OnClick = btnDeleteClick
   end
   object btnUp: TSpeedButton
-    Left = 281
-    Top = 68
+    Left = 280
+    Top = 92
     Width = 23
     Height = 22
     Glyph.Data = {
@@ -204,8 +204,8 @@ object frmActions: TfrmActions
     OnClick = btnUpClick
   end
   object btnDown: TSpeedButton
-    Left = 281
-    Top = 89
+    Left = 280
+    Top = 113
     Width = 23
     Height = 22
     Glyph.Data = {
@@ -346,16 +346,6 @@ object frmActions: TfrmActions
     Height = 13
     Caption = 'Execute Mode: '
   end
-  object btnAddAction: TButton
-    Left = 305
-    Top = 47
-    Width = 75
-    Height = 25
-    Caption = 'Add Action'
-    Enabled = False
-    TabOrder = 0
-    OnClick = btnAddActionClick
-  end
   object ActionTypeCombo: TComboBox
     Left = 431
     Top = 49
@@ -363,7 +353,7 @@ object frmActions: TfrmActions
     Height = 21
     Style = csDropDownList
     ImeName = 'Microsoft IME 2010'
-    TabOrder = 1
+    TabOrder = 0
     OnChange = ActionTypeComboChange
     Items.Strings = (
       '')
@@ -374,7 +364,7 @@ object frmActions: TfrmActions
     Width = 289
     Height = 131
     ActivePage = TabSheet1
-    TabOrder = 2
+    TabOrder = 1
     object TabSheet1: TTabSheet
       Caption = 'Mouse Position'
       object Label2: TLabel
@@ -528,7 +518,7 @@ object frmActions: TfrmActions
     Width = 69
     Height = 21
     ImeName = 'Microsoft IME 2010'
-    TabOrder = 3
+    TabOrder = 2
     Text = '1'
   end
   object ActionEditLB: TListBox
@@ -539,7 +529,7 @@ object frmActions: TfrmActions
     Style = lbOwnerDrawFixed
     ImeName = 'Microsoft IME 2010'
     MultiSelect = True
-    TabOrder = 4
+    TabOrder = 3
     OnDblClick = ActionEditLBDblClick
     OnDrawItem = ActionEditLBDrawItem
   end
@@ -549,7 +539,7 @@ object frmActions: TfrmActions
     Width = 610
     Height = 41
     Align = alBottom
-    TabOrder = 5
+    TabOrder = 4
     object BitBtn1: TBitBtn
       Left = 112
       Top = 2
@@ -575,7 +565,7 @@ object frmActions: TfrmActions
     Width = 211
     Height = 21
     ImeName = 'Microsoft IME 2010'
-    TabOrder = 6
+    TabOrder = 5
   end
   object ExecModeRG: TRadioGroup
     Left = 378
@@ -588,7 +578,44 @@ object frmActions: TfrmActions
       'Event'
       'Driver'
       'Hardware')
+    TabOrder = 6
+  end
+  object btnAddAction: TPngBitBtn
+    Left = 280
+    Top = 47
+    Width = 85
+    Height = 25
+    Caption = 'Add Action'
     TabOrder = 7
+    OnClick = btnAddActionClick
+    PngImage.Data = {
+      89504E470D0A1A0A0000000D49484452000000100000001008060000001FF3FF
+      61000003264944415478DA8D935D6C53651CC67F6F4FDB9DD26E5D194559619B
+      9B0337BF264AD0A14125EDA6817D7921C131A30425042EC444634C144D085E41
+      0C0461485486860B65A32CCAB6882C866982289A089165848DB4A454E8C7DA9D
+      D3F69CD6C359B26C5EF15CBD79FFCFFB4BFE799F47F07FB5D04C396D95B2BBDD
+      ED713BEF5C256289F4B89AE8254C1F414ECFB68B99531776B2F477B53EE9DFD0
+      D8C41315F5B829354709E2FC3671896F4606387AF2D721C3B996A3867B06B005
+      1B3AA19EB7B67B3BEA5EE4B63AC985C808DF5E0B9AE397AB3B78CCBB128FECE2
+      C4E5EFD9B8775F14091F07C94D033A193CBEF37D7F53CD2A46C267B99D1D253C
+      E5E59DFA43E678C3D95A5A6B96532C55D158FE2C0363E758BF73D710C708085E
+      25B0A5BD65E0E3D6D7F861BC97BC5051F51849E5BE1940E7F0FDACA97A1821EC
+      580A322F54B6F3C1C92F38D81B6C12E26DA9FBF48EDD9B15DB2837D25163173B
+      092DCA1FA1717A568F99808DC335AC5CBC0C87544CCE587D91D38B23574BF39E
+      F70E8BFA4F2A238776742E1CBC348CA4ACE01FF53B2C4222998D10F4A74D40C7
+      8F1E9CD6F9E8058D65F24BE88EF304EA57F3E69E633745C3A73EE5F36D5BE503
+      E7BEE6C8337F7337DAF4F3836C5DF50AAFEF3FA08AA7BFAC537677AE97BB4E7D
+      C8D5B6C25D01AAFB043DEB3EE2DDAF8EABE2A1CF16475A5AEF5978EAE205C2CA
+      5CE3BF1DD3C00527040B8C4868C6391E877207AC6B789CFE60E4A6B877AFDCFD
+      D4F3EECD259283A81A2593CF1057346239185B330D78E08C01B041A95C8AB0E4
+      2993E793D4157E3993382C3CBB9C814756B8067C55F350923A16AB8598728BEB
+      CA24579E9B062CFD49B0C4518CC751465ECBE32891085D9BE2AFF3A92633484B
+      F63B071B1ACBFC4536894C268F6A44F7F7F1C49C159657BA918D68171559C8E4
+      742E8EDC1ABABE2D1D300115FB9CB6792596D0D2473DDE229B15F2052E872608
+      C7741350EE91A8F35560FCAFF158E3CA9FB1E85432EF9BD89ECECD94A9BADB61
+      B759ADFD8B6A5C7E57B11D57890DAB91873BD20A3AA9648ED464961B63A9A19C
+      A6ADBDFA8632AB4CB3547BC4D9EC2AB5B65925A9DD6217669DF3D9425AD3F5DE
+      545CEB1BDD949E53E7FF00E0CB305493330DEC0000000049454E44AE426082}
   end
   object Timer1: TTimer
     Interval = 50

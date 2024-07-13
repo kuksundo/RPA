@@ -6,7 +6,8 @@ uses
   UnitAction2 in 'UnitAction2.pas' {frmActions},
   UnitMacroListClass2 in 'UnitMacroListClass2.pas',
   UnitMacroConfigClass2 in 'UnitMacroConfigClass2.pas',
-  FrmEventCaptureConfig in 'FrmEventCaptureConfig.pas' {EventCaptureConfigF};
+  FrmEventCaptureConfig in 'FrmEventCaptureConfig.pas' {EventCaptureConfigF},
+  FrmMacroConfig in 'FrmMacroConfig.pas' {MacroConfigF};
 
 {$R *.res}
 

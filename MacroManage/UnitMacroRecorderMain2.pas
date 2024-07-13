@@ -16,6 +16,7 @@ uses
   OtlComm,
   OtlCommon, TimerPool,
   mormot.core.base, mormot.orm.base, mormot.core.variants, mormot.core.json,
+  mormot.core.collections, mormot.core.unicode, mormot.core.os,
   thundax.lib.actions_pjh, CPort, HotKeyManager, UnitSendInputHelper,
   UnitMacroListClass2, UnitNextGridFrame, Vcl.Buttons, Vcl.ToolWin, UnitAction2,
   ralarm, GpCommandLineParser, UnitMacroConfigClass2, UnitSerialCommThread,
@@ -62,7 +63,6 @@ type
     btnStop: TSpeedButton;
     Panel7: TPanel;
     MacroGrid: TNextGrid;
-    seq: TNxTextColumn;
     Macroname: TNxTextColumn;
     IsExecute: TNxCheckBoxColumn;
     RepeatCount: TNxTextColumn;
@@ -106,6 +106,17 @@ type
     Config1: TMenuItem;
     LoadEventCaptureConfigFromFile1: TMenuItem;
     ChangeMacroName1: TMenuItem;
+    DeleteSelectedMacro1: TMenuItem;
+    N5: TMenuItem;
+    SaveasBase641: TMenuItem;
+    N6: TMenuItem;
+    N7: TMenuItem;
+    Close1: TMenuItem;
+    CopySelectedMacro1: TMenuItem;
+    N8: TMenuItem;
+    seq: TNxIncrementColumn;
+    SetMacroConfig1: TMenuItem;
+    N9: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormDestroy(Sender: TObject);
@@ -152,6 +163,10 @@ type
     procedure Config1Click(Sender: TObject);
     procedure LoadEventCaptureConfigFromFile1Click(Sender: TObject);
     procedure ChangeMacroName1Click(Sender: TObject);
+    procedure DeleteSelectedMacro1Click(Sender: TObject);
+    procedure SaveasBase641Click(Sender: TObject);
+    procedure CopySelectedMacro1Click(Sender: TObject);
+    procedure SetMacroConfig1Click(Sender: TObject);
   private
     FMacroCancelToken: IOmniCancellationToken;
     FMacroStepQueue    : TOmniMessageQueue;
@@ -199,6 +214,7 @@ type
     function CheckNReSetRegistryForEnableLUA: boolean;
     function CommandLineParse: string;
     procedure ApplyCommandLineOption;
+    procedure ApplyCommandLine4AutoPlayNExit;
 
     procedure WMReceiveString( var Message: TMessage ); message WM_RECEIVESTRINGFROMCOMM;
     procedure WMNotifyMouseEvent( var Message: TMessage ); message WM_Notify_Mouse_Event;
@@ -213,6 +229,7 @@ type
       const msg: string; checkHandle: integer = -1);
 
     procedure AddActionFromForm;
+    procedure AddAction2EditForm;
 
     procedure AddMacroTest1;
     procedure AddMacroTest2;
@@ -234,21 +251,28 @@ type
     procedure ConvertInput2ActionItem(AInput: TInput; AActionItem: TActionItem);
 
     procedure StepEnque(AHandleKind: integer);
+    procedure AssignActions2EditForm(AList: IList<IAction>);
+    procedure AssignActionsFromForm(AList: IList<IAction>);
   public
     FWorker  : IOmniParallelLoop<integer>;
     FWorker2  : IOmniParallelLoop<pointer>;
     FfrmActions: TfrmActions;
-    FMacroManageList: TMacroManagements;
+    FMacroRootList: TMacroManagements;
 
     procedure ShowMacroManageListCount;
     procedure AssignActionData2Form(ASrcActColl, ADestActColl: TActionCollection;
       var ADestActList: thundax.lib.actions_pjh.TActionList);
+    procedure AssignActions2LB(AList: IList<IAction>);
     procedure AssignDynMsg2Grid(AMacroArray: TMacroArray);
+    procedure AssignActionItemList2EditForm(AList: IList<TActionItem>);
+    procedure AssignActionItemListFromEditForm(AList: IList<TActionItem>);
+    procedure AssignActionItemList2LB(AList: IList<TActionItem>; AListBox: TListBox=nil);
 
     procedure PlayMacro;
     procedure PlayMacroFromRecord;
     procedure _PlaySequence(AIdx: integer);
-    procedure PlaySequence(AActionList: TActionList; ATimes: integer);
+    procedure PlaySequence(AActionList: IList<IAction>; ATimes: integer);//TActionList
+    procedure PlaySequenceFromJson(AActionItemListJson: string);
     procedure StopMacro;
     procedure SignalEvent(const task: IOmniTask); //asynch
     procedure SignalEventAsync(AHandleKind: integer; timeout_ms: cardinal; idx: integer);
@@ -274,17 +298,22 @@ type
     procedure CreateNewMacro;
     procedure ClearMacro;
     procedure ClearMacroFromGrid;
-    procedure AddMacroName(AName: string='');
+
+    procedure AddMacroManage2MacroGrid(AMacro: TMacroManagement);
+    function AddMacroName(AName: string=''): integer;
+    procedure CopyNAddMacroName(AIdx: integer);
     procedure DeleteMacroname(AIdx: integer);
+    procedure SaveMacroToFileAsBase64(AFileName: string);
     procedure SaveMacroToFile(AFileName: string);
     procedure LoadMacroFromFile(AFileName: string; AIsAppend: Boolean=False);
+    procedure LoadMacroFromJson(AJson: string);
     procedure DisplayMacroToGrid(AName: string = '');
 
     procedure AddMacroItemName(AName: string);
     procedure DeleteMacroItemName(AIdx: integer = -1);
     procedure SelectMacroItem(AIdx: integer);
     procedure SelectMacroCollect(AIdx: integer);
-    procedure SelectActionCollect(AIdx: integer=-1);
+    procedure AssignActionItem2ActionLBByIndex(AIdx: integer=-1);
     procedure GetMsgFromGrid(AIndex: integer; var AMsg: string);
 
     procedure SetEventCaptureConfig;
@@ -297,7 +326,7 @@ var
 implementation
 
 uses UnitNameEdit, SystemCriticalU, sndkey32, FrmSerialCommConfig, UnitKeyBdUtil,
-  FrmInputEdit;
+  FrmInputEdit, FrmMacroConfig;
 
 {$R *.dfm}
 
@@ -334,6 +363,55 @@ begin
 
 end;
 
+procedure TMacroManageF.AddAction2EditForm;
+var
+  LMacroManagement: TMacroManagement;
+  LMacroItem: TMacroItem;
+  LActionItem: TActionItem;
+  i: integer;
+begin
+  FfrmActions := TfrmActions.Create(nil);
+  try
+    with FfrmActions do
+    begin
+      i := MacroGrid.SelectedRow;
+
+      if i < 0 then
+        exit;
+
+      LMacroManagement := FMacroRootList.FMacroManageList.Items[i] as TMacroManagement;
+
+      if Assigned(LMacroManagement.FActionItemList) then
+      begin
+        FIsDisplayCustomDesc := LMacroManagement.IsDisplayCustomDesc;
+        LMacroManagement.CopyActionItemList(LMacroManagement.FActionItemList, FfrmActions.FActionItemList);
+        AssignActionItemList2LB(FfrmActions.FActionItemList, ActionEditLB);
+//        AssignActionItemList2LB(LMacroManagement.ActionItemList, ActionEditLB);
+//      ActionEditLB.Items.Assign(ActionLB.Items);
+
+        if ShowModal = mrOK then
+        begin
+  //        LMacroManagement.FActionItemList.Add(TActionItem.Create);
+          FfrmActions.AssignActionItemListResultFromLB();
+          LMacroManagement.CopyActionItemList(FfrmActions.FActionItemListResult, LMacroManagement.FActionItemList);
+          AssignActionItemList2LB(LMacroManagement.FActionItemList);
+  //        ShowMessage(LMacroManagement.ActionItemList.Items[0].ActionDesc);
+  //        AssignActionItemListFromEditForm(LMacroManagement.ActionItemList);
+
+  //        ActionLB.Clear;
+  //        ActionLB.Items.Assign(ListBox1.Items);
+        end
+//        else
+//          ShowMessage(LMacroManagement.FActionItemList.Items[LMacroManagement.FActionItemList.Count-1].ActionDesc);
+      end;
+    end;
+  finally
+    FreeAndNil(FfrmActions);
+//    ShowMessage(LMacroManagement.FActionItemList.Items[1].ActionDesc + #13#10 +
+//                LMacroManagement.FActionItemList.Items[0].ActionDesc);
+  end;
+end;
+
 procedure TMacroManageF.AddActionFromForm;
 var
   LMacroManagement: TMacroManagement;
@@ -346,26 +424,25 @@ begin
     with FfrmActions do
     begin
       i := MacroGrid.SelectedRow;
-      
+
       if i < 0 then
         exit;
-        
-      LMacroManagement := FMacroManageList.Items[i] as TMacroManagement;
-      AssignActionData2Form(LMacroManagement.ActionCollect,FActionCollection,
-        FActionList);
+
+      LMacroManagement := FMacroRootList.FMacroManageList.Items[i] as TMacroManagement;
+      AssignActionsFromForm(LMacroManagement.FActionList);
       ActionEditLB.Items.Assign(ActionLB.Items);
 
       if ShowModal = mrOK then
       begin
-        AssignActionData2Form(FActionCollection,LMacroManagement.ActionCollect,
-          LMacroManagement.FActionList);
+//        AssignActionData2Form(FActionCollection,LMacroManagement.ActionCollect,
+//          LMacroManagement.FActionList);
 //  CopyActionCollect(FActionCollection, LMacroManagement.ActionCollect);
 //
 //  for i := 0 to FActionCollection.Count - 1 do
 //  begin
 //    if not Assigned(LMacroManagement.FActionList) then
 //      LMacroManagement.FActionList := TActionList.Create;
-//            
+//
 //    AddAction2List(LMacroManagement.FActionList, FActionCollection.Item[i].ActionItem);
 //  end;
 
@@ -393,7 +470,7 @@ begin
 
   //FSendInputHelper를 FMacromanagent.ActionList로 Convert 함
   AssignSIHelper2ActionColl(MacroGrid.SelectedRow);
-  SelectActionCollect();
+  AssignActionItem2ActionLBByIndex();
 end;
 
 procedure TMacroManageF.AddEvent2Buf(Message: TMessage);
@@ -453,11 +530,23 @@ begin
   ListBox1.Items.Add(AName);
 end;
 
-procedure TMacroManageF.AddMacroName(AName: string);
+procedure TMacroManageF.AddMacroManage2MacroGrid(AMacro: TMacroManagement);
+var
+  LRow: integer;
+begin
+  LRow := MacroGrid.AddRow;
+
+  MacroGrid.CellByName['Macroname', LRow].AsString := AMacro.MacroName;
+  MacroGrid.CellByName['IsExecute', LRow].AsBoolean := AMacro.IsExecute;
+  MacroGrid.CellByName['RepeatCount', LRow].AsInteger := AMacro.RepeatCount;
+end;
+
+function TMacroManageF.AddMacroName(AName: string): integer;
 var
   LRow, LAddResult: integer;
+  LMacroM: TMacroManagement;
 begin
-  if FMacroManageList.IsExistMacroName(AName) then
+  if FMacroRootList.IsExistMacroName(AName) then
   begin
     ShowMessage('동일한 매크로 이름이 존재합니다.');
     exit;
@@ -467,7 +556,7 @@ begin
     if AName = '' then
       AName := 'Noname Macro1';
 
-    LAddResult := FMacroManageList.AddMacro2ListWithName(AName);
+    LAddResult := FMacroRootList.AddMacro2ListWithName(AName);
 
     if LAddResult = -1 then
     begin
@@ -475,12 +564,15 @@ begin
     end
     else
     begin
-      LRow := MacroGrid.AddRow;
-      MacroGrid.CellByName['Macroname', LRow].AsString := AName;
-      MacroGrid.CellByName['IsExecute', LRow].AsBoolean := True;
-      MacroGrid.CellByName['RepeatCount', LRow].AsInteger := 1;
+      LMacroM := FMacroRootList.FMacroManageList.Items[LAddResult];
+      LMacroM.RepeatCount := 1;
+      LMacroM.IsExecute := True;
+
+      AddMacroManage2MacroGrid(LMacroM);
     end;
   end;
+
+  Result := LAddResult;
 end;
 
 procedure TMacroManageF.AddMacroTest1;
@@ -546,7 +638,7 @@ var
   LMacroManagements: TMacroManagements;
   LMacroManagement: TMacroManagement;
   LMacroItem: TMacros;
-  LActionItem: TActions;
+  LActionItem: TActionItem;//TActions;
   LJson: RawUTF8;
   LValid: Boolean;
   LVar: TDocVariantData;
@@ -559,19 +651,18 @@ begin
   LMacroItem := LMacroManagement.MacroArrayAdd;
   LMacroItem.MacroItem.ItemName := 'Test1 Item Name';
   LMacroItem.MacroItem.ItemValue := 'Test1 Item Value';
-  LActionItem := LMacroManagement.ActionCollect.Add;
-  LActionItem.ActionItem.ActionCode := 'Test1 Action Code';
-  LActionItem := LMacroManagement.ActionCollect.Add;
-  LActionItem.ActionItem.ActionCode := 'Test2 Action Code';
+  LActionItem.ActionCode := 'Test1 Action Code';
+  LMacroManagement.FActionItemList.Add(LActionItem);
+  LActionItem.ActionCode := 'Test2 Action Code';
 
 //  TJSONSerializer.RegisterClassForJSON([TMacroManagement,TActions, TMacros,TActionItem, TMacroItem]);
   LMacroManagements := TMacroManagements.Create;
-  LMacroManagements.OwnsObjects := True;
-  LMacroManagements.Add(LMacroManagement);
+//  LMacroManagements.OwnsObjects := True;
+//  LMacroManagements.Add(LMacroManagement);
 //  Memo1.Text := ObjectToJSON(LMacroManagements, [woHumanReadable,woStoreClassName]);
-  LMacroManagements.Delete(0);
+//  LMacroManagements.Delete(0);
 //  LMacroManagements.Extract(LMacroManagement);
-  LMacroManagements.Free;
+//  LMacroManagements.Free;
 
 //  LJson := Memo1.Text;
   LMacroManagements := TMacroManagements.Create;
@@ -699,11 +790,42 @@ begin
   PlayMacro;
 end;
 
+procedure TMacroManageF.ApplyCommandLine4AutoPlayNExit;
+var
+  LJson: string;
+begin
+  if FCommandLine.AutoPlayNExit then
+  begin
+    if FCommandLine.FMacroJson <> '' then
+    begin
+      LJson := FCommandLine.FMacroJson;
+    end
+    else
+    if FCommandLine.MacroFileName <> '' then
+    begin
+      if FileExists(FCommandLine.MacroFileName) then
+      begin
+        LJson := StringFromFile(FCommandLine.MacroFileName);
+      end;
+    end;
+
+    PlaySequenceFromJson(LJson);
+    LJson := '';
+    halt(0);
+  end;
+end;
+
 procedure TMacroManageF.ApplyCommandLineOption;
 begin
   if FCommandLine.MacroFileName <> '' then
   begin
     LoadMacroFromFile(FCommandLine.MacroFileName);
+    DisplayMacroToGrid;
+  end;
+
+  if FCommandLine.FMacroJson <> '' then
+  begin
+    LoadMacroFromJson(FCommandLine.FMacroJson);
     DisplayMacroToGrid;
   end;
 
@@ -738,6 +860,21 @@ begin
 //  end;
 end;
 
+procedure TMacroManageF.AssignActions2EditForm(AList: IList<IAction>);
+begin
+
+end;
+
+procedure TMacroManageF.AssignActions2LB(AList: IList<IAction>);
+begin
+
+end;
+
+procedure TMacroManageF.AssignActionsFromForm(AList: IList<IAction>);
+begin
+
+end;
+
 procedure TMacroManageF.AssignDynMsg2Grid(AMacroArray: TMacroArray);
 var
   i, j, LRow: integer;
@@ -767,14 +904,14 @@ procedure TMacroManageF.AssignInput2ActionList(AInput: TInput;
   AMacroManage: TMacroManagement);
 var
   LItem: TActionItem;
-  LActions: TActions;
+//  LActions: TActions;
 begin
   LItem := TActionItem.Create;
   try
-    LActions := AMacroManage.ActionCollect.Add;
-    ConvertInput2ActionItem(AInput, LItem);
-    LActions.AssignActionItem2(LItem);
-    TActionItem.AddActionItem2List(AMacroManage.FActionList, LItem);
+//    LActions := AMacroManage.ActionCollect.Add;
+//    ConvertInput2ActionItem(AInput, LItem);
+//    LActions.AssignActionItem2(LItem);
+//    TActionItem.AddActionItem2List(AMacroManage.FActionList, LItem);
   finally
     LItem.Free;
   end;
@@ -795,7 +932,7 @@ var
   LMacroManagement: TMacroManagement;
   Input: TInput;
 begin
-  LMacroManagement := FMacroManageList.Items[AIndex] as TMacroManagement;
+  LMacroManagement := FMacroRootList.FMacroManageList.Items[AIndex] as TMacroManagement;
 
   for Input in FSendInputHelper.SendInputList do
   begin
@@ -883,7 +1020,7 @@ begin
 
     if LNameEditF.ShowModal = mrOK then
     begin
-      LMacroManagement := FMacroManageList.Items[i] as TMacroManagement;
+      LMacroManagement := FMacroRootList.FMacroManageList.Items[i] as TMacroManagement;
       LMacroManagement.MacroName := LNameEditF.Edit1.Text;
       MacroGrid.CellByName['Macroname', i].AsString := LNameEditF.Edit1.Text;
     end;
@@ -895,7 +1032,8 @@ end;
 
 procedure TMacroManageF.Button6Click(Sender: TObject);
 begin
-  AddActionFromForm;
+//  AddActionFromForm;
+  AddAction2EditForm;
 end;
 
 procedure TMacroManageF.NoScreenSaverCheckClick(Sender: TObject);
@@ -914,7 +1052,7 @@ begin
   if LStr <> '' then
   begin
     LIdx := MacroGrid.SelectedRow;
-    FMacroManageList.ChangeMacroNameFromIndex(LIdx, LStr);
+    FMacroRootList.ChangeMacroNameFromIndex(LIdx, LStr);
     MacroGrid.CellsByName['MacroName', LIdx] := LStr;
   end;
 end;
@@ -970,7 +1108,7 @@ end;
 
 procedure TMacroManageF.ClearMacro;
 begin
-  FMacroManageList.ClearObject;
+  FMacroRootList.ClearObject;
   ClearMacroFromGrid;
 end;
 
@@ -1092,6 +1230,36 @@ begin
   AActionItem.ExecMode := TExecuteMode(0);
 end;
 
+procedure TMacroManageF.CopyNAddMacroName(AIdx: integer);
+var
+  i, LAddResult: integer;
+  LSrcMacroM, LDestMacroM: TMacroManagement;
+  LActItem: TActionItem;
+begin
+  LAddResult := AddMacroName();
+
+  if LAddResult > 0 then
+  begin
+    LSrcMacroM := FMacroRootList.FMacroManageList.Items[AIdx] as TMacroManagement;
+    LDestMacroM := FMacroRootList.FMacroManageList.Items[LAddResult] as TMacroManagement;
+
+    for i := 0 to LSrcMacroM.FActionItemList.Count - 1 do
+    begin
+      LActItem := TActionItem.Create;
+
+      LSrcMacroM.FActionItemList.Items[i].AssignTo(LActItem);
+      LDestMacroM.FActionItemList.Add(LActItem);
+    end;
+
+    DisplayMacroToGrid();
+  end;
+end;
+
+procedure TMacroManageF.CopySelectedMacro1Click(Sender: TObject);
+begin
+  CopyNAddMacroName(MacroGrid.SelectedRow);
+end;
+
 procedure TMacroManageF.CopySIHelperNInsertDelay(
   var ADestSIHelper: TSendInputHelper; ADelay: Cardinal);
 var
@@ -1142,7 +1310,7 @@ end;
 
 procedure TMacroManageF.CreateNewMacro;
 begin
-  if FMacroManageList.Count > 0 then
+  if FMacroRootList.FMacroManageList.Count > 0 then
   begin
     if MessageDlg('Are you sure to create new Macro?', mtConfirmation, mbOKCancel, 0) = mrCancel then
     begin
@@ -1176,16 +1344,21 @@ var
 begin
   if MessageDlg('Are you sure to delete selected Macro?', mtConfirmation, mbOKCancel, 0) = mrOK then
   begin
-    LMacroManagement := FMacroManageList.Items[AIdx] as TMacroManagement;
+    LMacroManagement := FMacroRootList.FMacroManageList.Items[AIdx] as TMacroManagement;
 //    LMacroManagement.MacroCollect.Free;
 //    LMacroManagement.ActionCollect.Free;
-    LMacroManagement.FActionList.Free;
-    FMacroManageList.Delete(AIdx);
+//    LMacroManagement.FActionList.Free;
+    FMacroRootList.FMacroManageList.Delete(AIdx);
 //    LMacroManagement.Free;
     MacroGrid.DeleteRow(AIdx);
     NGFrame.NextGrid1.ClearRows;
     ActionLB.Items.Clear;
   end;
+end;
+
+procedure TMacroManageF.DeleteSelectedMacro1Click(Sender: TObject);
+begin
+  DeleteMacroname(MacroGrid.SelectedRow);
 end;
 
 procedure TMacroManageF.DestroyCommThread;
@@ -1254,16 +1427,16 @@ begin
     NGFrame.NextGrid1.ClearRows;
     ActionLB.Items.Clear;
 
-    for i := 0 to FMacroManageList.Count - 1 do
+    for i := 0 to FMacroRootList.FMacroManageList.Count - 1 do
     begin
-      LMacroManagement := FMacroManageList.Items[i] as TMacroManagement;
+      LMacroManagement := FMacroRootList.FMacroManageList.Items[i] as TMacroManagement;
       LRow := MacroGrid.AddRow;
       MacroGrid.CellByName['Macroname', LRow].AsString := LMacroManagement.MacroName;
       MacroGrid.CellByName['IsExecute', LRow].AsBoolean := LMacroManagement.IsExecute;
-      MacroGrid.CellByName['RepeatCount', LRow].AsInteger := LMacroManagement.IterateCount;
+      MacroGrid.CellByName['RepeatCount', LRow].AsInteger := LMacroManagement.RepeatCount;
 
-      AssignActionData2Form(LMacroManagement.ActionCollect,nil,
-        LMacroManagement.FActionList);
+      AssignActionItemList2LB(LMacroManagement.FActionItemList);
+//      AssignActions2LB(LMacroManagement.FActionItemList);
       AssignDynMsg2Grid(LMacroManagement.MacroArray);
     end;
   finally
@@ -1276,8 +1449,8 @@ procedure TMacroManageF.IsExecuteSetCell(Sender: TObject; ACol, ARow: Integer;
 var
   LMacroManagement: TMacroManagement;
 begin
-  LMacroManagement := FMacroManageList.Items[ARow] as TMacroManagement;
-  LMacroManagement.IsExecute := MacroGrid.CellByName['IsExecute', ARow].AsBoolean;
+//  LMacroManagement := FMacroRootList.FMacroManageList.Items[ARow] as TMacroManagement;
+//  LMacroManagement.IsExecute := MacroGrid.CellByName['IsExecute', ARow].AsBoolean;
 end;
 
 procedure TMacroManageF.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -1290,21 +1463,26 @@ procedure TMacroManageF.FormCreate(Sender: TObject);
 var
   LErrMsg: string;
 begin
+  LErrMsg := CommandLineParse;
+
+  if LErrMsg = '' then
+  begin
+    ApplyCommandLine4AutoPlayNExit;
+  end;
+
   InitHotKey;
   FMacroStepQueue := TOmniMessageQueue.Create(1);
   FActionStepQueue := TOmniMessageQueue.Create(1);
   CreateEvents(False, 2);
-  FMacroManageList := TMacroManagements.Create;
-  FMacroManageList.OwnsObjects := True;
-  TJSONSerializer.RegisterClassForJSON([TMacroManagement, TActions, TMacros, TActionItem, TMacroItem]);
+  FMacroRootList := TMacroManagements.Create;
+//  FMacroRootList.OwnsObjects := True;
+//  TJSONSerializer.RegisterClassForJSON([TMacroManagement, TActions, TMacros, TActionItem, TMacroItem]);
   g_DynGetMessage := GetMsgFromGrid;
   FPJHTimerPool := TPJHTimerPool.Create(nil);
   FEventCaptureConfig := TEventCaptureConfig.Create(FEventCaptureConfigFileName);
   FKeyBdHook := nil;
   FMouseHook := nil;
   CreateSendInputHelper();
-
-  LErrMsg := CommandLineParse;
 
   if LErrMsg = '' then
   begin
@@ -1316,23 +1494,30 @@ procedure TMacroManageF.FormDestroy(Sender: TObject);
 var
   i, j: integer;
 begin
+  if FCommandLine.AutoPlayNExit then
+  begin
+    FCommandLine.Free;
+    exit;
+  end
+  else
+    FCommandLine.Free;
+
   FPJHTimerPool.RemoveAll;
   FPJHTimerPool.Free;
-  FCommandLine.Free;
+
   FEventCaptureConfig.Free;
 
-  for i := 0 to FMacroManageList.Count - 1 do
-  begin
-//    TMacroManagement(FMacroManageList.Items[i]).FActionList.Free;
-//    TMacroManagement(FMacroManageList.Items[i]).Free;
-//    for j := 0 to TMacroManagement(FMacroManageList.Items[i]).ActionCollect.Count - 1 do
+//  for i := 0 to FMacroRootList.FMacroManageList.Count - 1 do
+//  begin
+//    TMacroManagement(FMacroRootList.FMacroManageList.Items[i]).FActionList.Free;
+//    TMacroManagement(FMacroRootList.FMacroManageList.Items[i]).Free;
+//    for j := 0 to TMacroManagement(FMacroRootList.FMacroManageList.Items[i]).ActionCollect.Count - 1 do
 //    begin
-//      TMacroManagement(FMacroManageList.Items[i]).ActionCollect.Item[j].Free;
+//      TMacroManagement(FMacroRootList.FMacroManageList.Items[i]).ActionCollect.Item[j].Free;
 //    end;
-  end;
+//  end;
 
-//  FMacroManageList.Clear;
-  FMacroManageList.Free;
+//  FMacroRootList.Clear;
 
   if Assigned(FSerialCommThread) then
     DestroyCommThread;
@@ -1342,7 +1527,9 @@ begin
   DestroyEvents;
   DestroyMsgBuf();
   DestroySendInputHelper();
-//  DestroyHook;
+
+  FMacroRootList.Free;
+  //  DestroyHook;
 end;
 
 procedure TMacroManageF.GetMsgFromGrid(AIndex: integer; var AMsg: string);
@@ -1527,6 +1714,7 @@ end;
 procedure TMacroManageF.LoadMacroFromFile(AFileName: string; AIsAppend: Boolean);
 var
   LMacroManageList: TMacroManagements;
+  LMacroManage: TMacroManagement;
   i: integer;
   LPath: string;
 begin
@@ -1543,23 +1731,27 @@ begin
   begin
     LMacroManageList := TMacroManagements.Create;
     try
-      LMacroManageList.LoadFromJSONFile(LPath+AFileName);
+      LMacroManageList.AddMacro2RootFromJsonFile(LPath+AFileName, FMacroRootList);
 
-      for i := 0 to LMacroManageList.Count - 1 do
-      begin
-        FMacroManageList.AddMacro2List(TMacroManagement(LMacroManageList.Items[i]));
-      end;
+//      LMacroManageList.LoadFromJSONFile(LPath+AFileName);
+//
+//      for i := 0 to LMacroManageList.FMacroManageList.Count - 1 do
+//      begin
+//        FMacroRootList.AddMacro2List(TMacroManagement(LMacroManageList.FMacroManageList.Items[i]));
+//      end;
     finally
       LMacroManageList.Free;
     end;
   end
   else
   begin
-    FMacroManageList.LoadFromJSONFile(LPath+AFileName);
-
-    for i := 0 to FMacroManageList.Count - 1 do
-      TMacroManagement(FMacroManageList.Items[i]).SetActionColl2ActionList;
+    FMacroRootList.LoadFromJSONFile(LPath+AFileName);
   end;
+end;
+
+procedure TMacroManageF.LoadMacroFromJson(AJson: string);
+begin
+  FMacroRootList.GetMacroManageListFromBase64(AJson);
 end;
 
 function TMacroManageF.LoadSIHelperListFromFile(AFileName: string): Boolean;
@@ -1681,7 +1873,7 @@ begin
   end
   else
   begin
-    LMacroManagement := FMacroManageList.Items[j] as TMacroManagement;
+    LMacroManagement := FMacroRootList.FMacroManageList.Items[j] as TMacroManagement;
 //    LMacroManagement.MacroCollect.Clear;
   end;
 
@@ -1727,13 +1919,14 @@ end;
 
 procedure TMacroManageF.PlayMacro;
 var
-  LActionList: TActionList;
+  LActionList: IList<IAction>;//TActionList;
+  LMacroManagement: TMacroManagement;
   LMsg: TOmniMessage;
   Li, LTimes: integer;
 begin
   btnSequence.Enabled := false;
   FMacroCancelToken := CreateOmniCancellationToken;
-  FWorker := Parallel.ForEach(0,FMacroManageList.Count-1)
+  FWorker := Parallel.ForEach(0,FMacroRootList.FMacroManageList.Count-1)
     .CancelWith(FMacroCancelToken)
     .NumTasks(1)
     .PreserveOrder
@@ -1756,13 +1949,16 @@ begin
     var
       Li: integer;
     begin
-      if TMacroManagement(FMacroManageList.Items[i]).IsExecute then
+      LMacroManagement := FMacroRootList.FMacroManageList.Items[i];
+
+      if LMacroManagement.IsExecute then
       begin
-        LActionList := TMacroManagement(FMacroManageList.Items[i]).FActionList;
-        LTimes := TMacroManagement(FMacroManageList.Items[i]).IterateCount;
-        //ShowMessage(TMacroManagement(FMacroManageList.Items[i]).MacroName+':'+IntToStr(i));
+        LMacroManagement.SetActionItemList2ActionList;
+        LActionList := LMacroManagement.FActionList;
+        LTimes := LMacroManagement.RepeatCount;
+        //ShowMessage(TMacroManagement(FMacroRootList.FMacroManageList.Items[i]).MacroName+':'+IntToStr(i));
         if Assigned(LActionList) then
-          PlaySequence(LActionList,LTimes);
+          PlaySequence(LActionList, LTimes);
 
 //        if FMacroStepQueue.TryDequeue(LMsg) then
 //        begin
@@ -1783,7 +1979,7 @@ var
 begin
 //  btnSequence.Enabled := false;
 //  FMacroCancelToken := CreateOmniCancellationToken;
-//  FWorker2 := Parallel.ForEach<pointer>(FMacroManageList.GetEnumerator)
+//  FWorker2 := Parallel.ForEach<pointer>(FMacroRootList.GetEnumerator)
 //    .CancelWith(FMacroCancelToken)
 //    .NoWait
 //    .OnStop(
@@ -1835,7 +2031,7 @@ begin
 //  MacroRecorder1.PlayMacro;
 end;
 
-procedure TMacroManageF.PlaySequence(AActionList: TActionList; ATimes: integer);
+procedure TMacroManageF.PlaySequence(AActionList: IList<IAction>; ATimes: integer);
 var
   i, j: Integer;
   action: IAction;
@@ -1952,13 +2148,44 @@ begin
   end;
 end;
 
+procedure TMacroManageF.PlaySequenceFromJson(AActionItemListJson: string);
+var
+  LActionItem: TActionItem;
+  LMacroManagements: TMacroManagements;
+  LMacroManagement: TMacroManagement;
+  i: integer;
+begin
+  //AActionItemListJson: Base64 String임
+  LMacroManagements := TMacroManagements.Create;
+  try
+    LMacroManagements.GetMacroManageListFromBase64(AActionItemListJson);
+
+    for LMacroManagement in LMacroManagements.FMacroManageList do
+    begin
+      if LMacroManagement.IsExecute then
+      begin
+        LMacroManagement.SetActionItemList2ActionList;
+        PlaySequence(LMacroManagement.FActionList, LMacroManagement.RepeatCount);
+      end;
+    end;//for
+  finally
+    LMacroManagements.Free;
+  end;
+end;
+
 procedure TMacroManageF.RepeatCountSetCell(Sender: TObject; ACol, ARow: Integer;
   CellRect: TRect; CellState: TCellState);
 var
   LMacroManagement: TMacroManagement;
 begin
-  LMacroManagement := FMacroManageList.Items[ARow] as TMacroManagement;
-  LMacroManagement.IterateCount := MacroGrid.CellByName['RepeatCount', ARow].AsInteger;
+//  LMacroManagement := FMacroRootList.FMacroManageList.Items[ARow] as TMacroManagement;
+//  LMacroManagement.RepeatCount := MacroGrid.CellByName['RepeatCount', ARow].AsInteger;
+end;
+
+procedure TMacroManageF.SaveasBase641Click(Sender: TObject);
+begin
+  if SaveDialog1.Execute(Handle) then
+    SaveMacroToFileAsBase64(SaveDialog1.FileName);
 end;
 
 procedure TMacroManageF.SaveInput2File(AFileName: string);
@@ -2081,8 +2308,16 @@ begin
   if AFileName = '' then
     exit;
 
-//  LJson := ObjectToJSON(FMacroManageList, [woHumanReadable,woStoreClassName]);
-  FMacroManageList.SaveToJSONFile(AFileName);
+//  LJson := ObjectToJSON(FMacroRootList, [woHumanReadable,woStoreClassName]);
+  FMacroRootList.SaveToJSONFile(AFileName);
+end;
+
+procedure TMacroManageF.SaveMacroToFileAsBase64(AFileName: string);
+var
+  LUtf8: RawUtf8;
+begin
+  LUtf8 := FMacroRootList.GetBase64FromMacroManageList;
+  FileFromString(LUtf8, AFileName);
 end;
 
 procedure TMacroManageF.SaveSIHelperList2File(AFileName: string);
@@ -2148,9 +2383,8 @@ begin
   end;
 end;
 
-procedure TMacroManageF.SelectActionCollect(AIdx: integer);
+procedure TMacroManageF.AssignActionItem2ActionLBByIndex(AIdx: integer);
 var
-  j: integer;
   LMacroManagement: TMacroManagement;
 begin
   if AIdx = -1 then
@@ -2160,16 +2394,69 @@ begin
   try
     ActionLB.Items.Clear;
 
-    LMacroManagement := FMacroManageList.Items[AIdx] as TMacroManagement;
+    LMacroManagement := FMacroRootList.FMacroManageList.Items[AIdx] as TMacroManagement;
 
-    for j := 0 to LMacroManagement.ActionCollect.Count - 1 do
-    begin
-      ActionLB.Items.AddObject(LMacroManagement.ActionCollect.Item[j].ActionItem.ActionDesc, LMacroManagement.ActionCollect.Item[j]);
-    end;
+    AssignActionItemList2LB(LMacroManagement.FActionItemList);
 
-    Label2.Caption := 'Count : ' + IntToStr(j);
+    Label2.Caption := 'Count : ' + IntToStr(LMacroManagement.FActionItemList.Count);
   finally
     ActionLB.Items.EndUpdate;
+  end;
+end;
+
+procedure TMacroManageF.AssignActionItemList2EditForm(
+  AList: IList<TActionItem>);
+begin
+
+end;
+
+procedure TMacroManageF.AssignActionItemListFromEditForm(AList: IList<TActionItem>);
+begin
+
+end;
+
+//procedure TMacroManageF.AssignActionItemListFromLB(var AList: IList<TActionItem>;
+//  AListBox: TListBox);
+//var
+//  j: integer;
+//  LList: IList<TActionItem>;
+//  LSrcActItem, LDestActItem: TActionItem;
+//begin
+//  if not Assigned(AListBox) then
+//    AListBox := ActionLB;
+//
+//  LList := Collections.NewList<TActionItem>;
+//
+//  for j := 0 to AListBox.Count - 1 do
+//  begin
+//    LDestActItem := TActionItem.Create;
+//    LSrcActItem := AListBox.Items.Objects[j] as TActionItem;
+//    LSrcActItem.AssignTo(LDestActItem);
+//
+//    LList.Add(LDestActItem);
+//  end;
+//
+//  AList := LList;
+
+//  for j := 0 to AListBox.Count - 1 do
+//  begin
+//    AList.Add(AListBox.Items.Objects[j] as TActionItem);
+//    AListBox.Items.AddObject(AList.Items[j].ActionDesc, AList.Items[j]);
+//  end;
+//end;
+
+procedure TMacroManageF.AssignActionItemList2LB(AList: IList<TActionItem>; AListBox: TListBox=nil);
+var
+  j: integer;
+begin
+  if not Assigned(AListBox) then
+    AListBox := ActionLB;
+
+  AListBox.Clear;
+
+  for j := 0 to AList.Count - 1 do
+  begin
+    AListBox.Items.AddObject(AList.Items[j].ActionDesc, AList.Items[j]);
   end;
 end;
 
@@ -2178,7 +2465,7 @@ var
   j, LRow: integer;
   LMacroManagement: TMacroManagement;
 begin
-  LMacroManagement := FMacroManageList.Items[AIdx] as TMacroManagement;
+  LMacroManagement := FMacroRootList.FMacroManageList.Items[AIdx] as TMacroManagement;
   AssignDynMsg2Grid(LMacroManagement.MacroArray);
 //  NGFrame.NextGrid1.BeginUpdate;
 //  try
@@ -2199,7 +2486,7 @@ end;
 procedure TMacroManageF.SelectMacroItem(AIdx: integer);
 begin
   SelectMacroCollect(AIdx);
-  SelectActionCollect(AIdx);
+  AssignActionItem2ActionLBByIndex(AIdx);
 end;
 
 procedure TMacroManageF.SendInputTest1Click(Sender: TObject);
@@ -2247,6 +2534,24 @@ end;
 procedure TMacroManageF.SetEventCaptureConfig;
 begin
   CreateEventCaptureConfigF(FEventCaptureConfig, FEventCaptureConfigFileName);
+end;
+
+procedure TMacroManageF.SetMacroConfig1Click(Sender: TObject);
+var
+  Idx: integer;
+  LMacroManagement: TMacroManagement;
+begin
+  Idx := MacroGrid.SelectedRow;
+
+  if Idx >= 0 then
+  begin
+    LMacroManagement := FMacroRootList.FMacroManageList.Items[Idx];
+
+    if ShowMacroConfig(LMacroManagement) = mrOK then
+    begin
+      DisplayMacroToGrid();
+    end;
+  end;
 end;
 
 procedure TMacroManageF.CreateKeyBdHook;
@@ -2317,7 +2622,7 @@ end;
 
 procedure TMacroManageF.ShowMacroManageListCount;
 begin
-  ShowMessage(IntToStr(FMacroManageList.Count));
+  ShowMessage(IntToStr(FMacroRootList.FMacroManageList.Count));
 end;
 
 procedure TMacroManageF.SignalEvent(const task: IOmniTask);
@@ -2373,7 +2678,7 @@ var
 begin
   LIsAppend := False;
 
-  if FMacroManageList.Count > 0 then
+  if FMacroRootList.FMacroManageList.Count > 0 then
   begin
     if MessageDlg('Are you want to append Macro from file?', mtConfirmation, mbYesNo, 0) = mrYes then
     begin
@@ -2484,7 +2789,7 @@ begin
     begin
       if MacroGrid.SelectedRow > 0 then
       begin
-        FMacroManageList.Move(MacroGrid.SelectedRow, MacroGrid.SelectedRow - 1);
+//        FMacroRootList.FMacroManageList.Data.(MacroGrid.SelectedRow, MacroGrid.SelectedRow - 1);
         MacroGrid.MoveRow(MacroGrid.SelectedRow, MacroGrid.SelectedRow - 1);
         MacroGrid.SelectedRow := MacroGrid.SelectedRow - 1;
       end;
@@ -2513,7 +2818,7 @@ begin
 
   if CurrIndex + 1 < LastIndex then
   begin
-    FMacroManageList.Move(CurrIndex, CurrIndex + 1);
+//    FMacroRootList.Move(CurrIndex, CurrIndex + 1);
     MacroGrid.MoveRow(CurrIndex, CurrIndex + 1);
     MacroGrid.SelectedRow := CurrIndex + 1;
   end;
@@ -2579,12 +2884,12 @@ end;
 
 procedure TMacroManageF._PlaySequence(AIdx: integer);
 var
-  LActionList: TActionList;
+  LActionList: IList<IAction>;
 begin
-  LActionList := TMacroManagement(FMacroManageList.Items[AIdx]).FActionList;
+  LActionList := TMacroManagement(FMacroRootList.FMacroManageList.Items[AIdx]).FActionList;
 
   if Assigned(LActionList) then
-    PlaySequence(LActionList,TMacroManagement(FMacroManageList.Items[AIdx]).IterateCount);
+    PlaySequence(LActionList,TMacroManagement(FMacroRootList.FMacroManageList.Items[AIdx]).RepeatCount);
 end;
 
 end.

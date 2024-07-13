@@ -7,6 +7,7 @@ uses classes, GpCommandLineParser;
 type
   TMacroCommandLineOption = class
     FMacroFileName: string;
+    FAutoPlayNExit, //프로그램 시작시 Macro 자동 실행 후 종료(macro file name 또는 MacroJson을 실행)
     FAutoExecute,//프로그램 시작시 Macro 자동 실행
     FNoScreenSaver,//화면 보호기 방지 Check
     FCheckExecuteTime //실행시각 Check
@@ -26,6 +27,8 @@ type
     property SetExecuteTime: string read FSetExecuteTime write FSetExecuteTime;
     [CLPName('j'), CLPLongName('macrojson', 'macro json'), CLPDescription('macro json')]
     property MacroJson: string read FMacroJson write FMacroJson;
+    [CLPName('ape'), CLPLongName('AutoPlayExit', 'auto play & exit'), CLPDescription('auto play & exit')]
+    property AutoPlayNExit: Boolean read FAutoPlayNExit write FAutoPlayNExit;
   end;
 
 implementation

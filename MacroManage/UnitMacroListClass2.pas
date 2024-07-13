@@ -3,8 +3,9 @@ unit UnitMacroListClass2;
 interface
 
 uses classes, SysUtils, System.Contnrs, Vcl.Dialogs, Vcl.Controls,
+  TypInfo, UnitIniAttriPersist, UnitIniConfigBase,
   mormot.core.json, mormot.core.base, mormot.core.data, mormot.core.unicode,
-  mormot.core.text, mormot.orm.base,
+  mormot.core.text, mormot.orm.base, mormot.core.collections, mormot.core.variants,
   JHP.BaseConfigCollect, thundax.lib.actions_pjh;//System.Generics.Collections, , Generics.Legacy
 
 const
@@ -30,7 +31,7 @@ type
   end;
 
 type
-  TActionItem = class(TSynAutoCreateFields)
+  TActionItem = class//(TSynAutoCreateFields)
   private
     FActionCode,
     FActionDesc,
@@ -39,10 +40,11 @@ type
     FExecMode: TExecuteMode;
     FXPos, FYPos, FWaitSec, FGridIndex, FVKExtendKey: integer;
     FInputText: string;
+    function ToString: string;
   public
-    class function AddActionItem2List(var AList: TActionList;
+    class function AddActionItem2List(var AList: IList<IAction>;
       AItem: TActionItem; ADesc: string = ''): IAction;
-    procedure Assign(Source: TSynPersistent); override;
+    procedure AssignTo(ADest: TActionItem);
     procedure CopyActionList(ADest: TActionList);
   published
     property ActionCode: string read FActionCode write FActionCode;
@@ -105,52 +107,90 @@ type
 
   TMacroArray = array of TMacroCollection;
 
-  TMacroManagement = class(TSynAutoCreateFields)
+  TMacroManagement = class//(TSynAutoCreateFields)
   private
-    FIterateCount : integer;
+    FRepeatCount : integer;
+    FIsExecute,
+    FIsDisplayCustomDesc //True: ActionDesc 대신 CustomDesc를 표시함
+    : Boolean;
     FActionDesc: string;
     FCommIniFileName,
     FMacroName,
     FMacroDesc: string;
-    FIsExecute: Boolean;
+    FActItemListJson: string;
 
 //    FMacroCollection: TMacroCollection;
     FMacroArray: TMacroArray;
-    FActionCollection: TActionCollection;
+    FRepeatPos: integer;//ActionList의 현재 실행 단계
+    FActionStepEnable: Boolean;
+    FBreakExecute: Boolean;
 
     procedure Clear;
   public
-    FActionList: TActionList;
+    FActionList: IList<IAction>;
+    FActionItemList: IList<TActionItem>;//TActionCollection;
 
     destructor Destroy; override;
     function MacroArrayAdd: TMacros;
     procedure SetActionColl2ActionList;
+    procedure SetActionItemList2ActionList;
     procedure ChangeMacroName(AMacroName: string);
+    procedure CopyActionItemList(ASrc: IList<TActionItem>; var ADest: IList<TActionItem>);
+    //AMsg를 Typing하는 TActionItem을 생성하여 FActionItemList에 추가함
+    procedure AddTypeMsgMacro2ActItemList(AMsg: string);
+
+    procedure ExecuteActionList();
+    procedure ExecuteActItemList();
+    procedure Action2HW(Action: IAction);
+
+    property RepeatPos : integer read FRepeatPos write FRepeatPos;
+    property ActionStepEnable : Boolean read FActionStepEnable write FActionStepEnable;
+    property BreakExecute : Boolean read FBreakExecute write FBreakExecute;
   published
+    [JHPIni('Macro','CommIniFileName','','CommIniFileName', tkString)]
     property CommIniFileName: string read FCommIniFileName write FCommIniFileName;
+    [JHPIni('Macro','MacroName','','MacroName', tkString)]
     property MacroName: string read FMacroName write FMacroName;
+    [JHPIni('Macro','MacroDesc','','MacroDesc', tkString)]
     property MacroDesc: string read FMacroDesc write FMacroDesc;
-    property IterateCount : integer read FIterateCount write FIterateCount;
+    [JHPIni('Macro','RepeatCount','1','RepeatCount', tkInteger)]
+    property RepeatCount : integer read FRepeatCount write FRepeatCount;
+    [JHPIni('Macro','IsExecute','True','IsExecute', tkEnumeration)]
     property IsExecute : Boolean read FIsExecute write FIsExecute;
+    [JHPIni('Macro','IsDisplayCustomDesc','False','IsDisplayCustomDesc', tkEnumeration)]
+    property IsDisplayCustomDesc : Boolean read FIsDisplayCustomDesc write FIsDisplayCustomDesc;
+    [JHPIni('Macro','ActionDesc','','ActionDesc', tkString)]
     property ActionDesc: string read FActionDesc write FActionDesc;
 
     property MacroArray: TMacroArray read FMacroArray;
-    property ActionCollect: TActionCollection read FActionCollection;
+    property ActItemListJson: string read FActItemListJson write FActItemListJson;
   end;
 
-  TMacroManagements = class(TObjectList)
+  TMacroManagements = class//(TObjectList)
   public
+    FMacroManageList: IList<TMacroManagement>;
+
+    constructor Create();
+//    destructor Destroy; override;
+
     function IsExistMacroName(AName: string): boolean;
     function AddMacro2ListWithName(AName: string=''): integer;
     function AddMacro2List(AMacro: TMacroManagement): integer;
     procedure DeleteMacroFromListWithIndex(AIdx: integer);
     procedure ChangeMacroNameFromIndex(AIdx: integer; AMacroName: string);
 
+    function LoadFromJson(AJson: string): integer;
+    function GetBase64FromMacroManageList: string;
+    procedure GetMacroManageListFromBase64(ABase64: string);
+
     procedure ClearObject;
     function LoadFromJSONFile(AFileName: string; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer; virtual;
     function SaveToJSONFile(AFileName: string; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer; virtual;
     function LoadFromStream(AStream: TStream; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer;
     function SaveToStream(AStream: TStream; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer;
+
+    //Json 파일에서 Macro Load하여 ARootMacro.FMacroManageList에 추가
+    procedure AddMacro2RootFromJsonFile(AFileName: string; ARootMacro: TMacroManagements=nil);
   end;
 
   procedure CopyActionCollect(ASrc, ADest: TActionCollection);
@@ -158,7 +198,7 @@ type
 
 implementation
 
-uses UnitEncrypt2, UnitRttiUtil2;
+uses UnitEncrypt2, UnitRttiUtil2, UnitBase64Util2;
 
 procedure CopyActionCollect(ASrc, ADest: TActionCollection);
 var
@@ -168,7 +208,7 @@ begin
 
   for i := 0 to ASrc.Count - 1 do
   begin
-    ADest.Add.ActionItem.Assign(ASrc.Item[i].ActionItem);
+//    ADest.Add.ActionItem.Assign(ASrc.Item[i].ActionItem);
   end;
 
 //  ASrc.AssignTo(ADest);
@@ -180,7 +220,7 @@ var
 begin
   for i := 0 to ASrcColl.Count - 1 do
   begin
-    TActionItem.AddActionItem2List(ADestActionList, ASrcColl.Item[i].ActionItem);
+//    TActionItem.AddActionItem2List(ADestActionList, ASrcColl.Item[i].ActionItem);
   end;
 end;
 
@@ -239,12 +279,16 @@ begin
   LMacroManagement := TMacroManagement.Create;
   LMacroManagement.CommIniFileName := AMacro.CommIniFileName;
   LMacroManagement.MacroName := AMacro.MacroName;
-  LMacroManagement.FIterateCount := AMacro.IterateCount;
-  LMacroManagement.FIsExecute := AMacro.IsExecute;
-  LMacroManagement.FActionList := TActionList.Create;
-  LMacroManagement.FActionCollection.AssignCollect(AMacro.ActionCollect);
+  LMacroManagement.RepeatCount := AMacro.RepeatCount;
+  LMacroManagement.IsExecute := AMacro.IsExecute;
+  LMacroManagement.FActionList := Collections.NewList<IAction>;// TActionList.Create;
+  LMacroManagement.FActionItemList := Collections.NewList<TActionItem>;//TActionList.Create;
+  LMacroManagement.CopyActionItemList(AMacro.FActionItemList, LMacroManagement.FActionItemList);
+//  LMacroManagement.FActionItemList.Data.LoadFromJson(LActItemListJson);
 
-  Add(LMacroManagement);
+//  LMacroManagement.FActionCollection.AssignCollect(AMacro.ActionCollect);
+
+  FMacroManageList.Add(LMacroManagement);
 end;
 
 function TMacroManagements.AddMacro2ListWithName(AName: string): integer;
@@ -256,20 +300,37 @@ begin
   LMacroManagement := TMacroManagement.Create;
   LMacroManagement.CommIniFileName := '';
   LMacroManagement.MacroName := AName;
-  LMacroManagement.FIterateCount := 1;
-  LMacroManagement.FIsExecute := True;
-  LMacroManagement.FActionList := TActionList.Create;
+  LMacroManagement.RepeatCount := 1;
+  LMacroManagement.IsExecute := True;
+  LMacroManagement.FActionList := Collections.NewList<IAction>;//TActionList.Create;
+  LMacroManagement.FActionItemList := Collections.NewList<TActionItem>;//TActionList.Create;
 
-  Result := Add(LMacroManagement);
+  Result := FMacroManageList.Add(LMacroManagement);
+end;
+
+procedure TMacroManagements.AddMacro2RootFromJsonFile(AFileName: string;
+  ARootMacro: TMacroManagements);
+var
+  i: integer;
+begin
+  if not Assigned(ARootMacro) then
+    ARootMacro := Self;
+
+  LoadFromJSONFile(AFileName);
+
+  for i := 0 to FMacroManageList.Count - 1 do
+  begin
+    ARootMacro.AddMacro2List(FMacroManageList.Items[i]);
+  end;
 end;
 
 procedure TMacroManagements.ChangeMacroNameFromIndex(AIdx: integer; AMacroName: string);
 var
   LMacroManagement: TMacroManagement;
 begin
-  if AIdx < Count then
+  if AIdx < FMacroManageList.Count then
   begin
-    LMacroManagement := Items[AIdx] as TMacroManagement;
+    LMacroManagement := FMacroManageList.Items[AIdx] as TMacroManagement;
     LMacroManagement.ChangeMacroName(AMacroName);
   end;
 end;
@@ -278,12 +339,17 @@ procedure TMacroManagements.ClearObject;
 var
   i: integer;
 begin
-  for i := Self.Count - 1 downto 0 do
+  for i := FMacroManageList.Count - 1 downto 0 do
   begin
-    TMacroManagement(Self.Items[i]).Clear;
+    TMacroManagement(FMacroManageList.Items[i]).Clear;
 
 //    TMacroManagement(Self.Items[i]).Free;  ==> 이거살리면 Self.Clear할떄 에러남
   end;
+end;
+
+constructor TMacroManagements.Create;
+begin
+  FMacroManageList := Collections.NewList<TMacroManagement>;
 end;
 
 procedure TMacroManagements.DeleteMacroFromListWithIndex(AIdx: integer);
@@ -292,13 +358,37 @@ var
 begin
   if MessageDlg('Are you sure to delete selected Macro?', mtConfirmation, mbOKCancel, 0) = mrOK then
   begin
-    LMacroManagement := Items[AIdx] as TMacroManagement;
+    LMacroManagement := FMacroManageList.Items[AIdx] as TMacroManagement;
 //    LMacroManagement.MacroCollect.Free;
     LMacroManagement.Clear;
     LMacroManagement.Free;
-    Delete(AIdx);
+    FMacroManageList.Delete(AIdx);
   end;
 end;
+
+function TMacroManagements.GetBase64FromMacroManageList: string;
+var
+  LUtf8: RawUtf8;
+begin
+  LUtf8 := FMacroManageList.Data.SaveToJson();
+  Result := Utf8ToString(MakeRawUTF8ToBin64(LUtf8));
+end;
+
+procedure TMacroManagements.GetMacroManageListFromBase64(ABase64: string);
+var
+  LUtf8: RawUtf8;
+begin
+  LUtf8 := MakeBase64ToUTF8(StringToUtf8(ABase64));
+  LoadFromJson(Utf8ToString(LUtf8));
+//  FMacroManageList.Clear;
+//  FMacroManageList.Data.LoadFromJson(LUtf8);
+end;
+
+//destructor TMacroManagements.Destroy;
+//begin
+
+//  inherited;
+//end;
 
 function TMacroManagements.IsExistMacroName(AName: string): boolean;
 var
@@ -310,9 +400,9 @@ begin
   if AName = '' then
     exit;
 
-  for i := 0 to Count - 1 do
+  for i := 0 to FMacroManageList.Count - 1 do
   begin
-    LMacroManagement := Items[i] as TMacroManagement;
+    LMacroManagement := FMacroManageList.Items[i] as TMacroManagement;
 
     if LMacroManagement.MacroName = AName then
     begin
@@ -322,14 +412,51 @@ begin
   end;
 end;
 
+function TMacroManagements.LoadFromJson(AJson: string): integer;
+var
+  LActItemListJson: RawUTF8;
+  LDocList: IDocList; //LDocList4ActItem
+  LDocDict: IDocDict;
+  LMacroManagement: TMacroManagement;
+  i: integer;
+begin
+  LActItemListJson := StringToUTF8(AJson);
+  LDocList := DocList(LActItemListJson);
+
+//    for LDocDict in LDocList.Objects do
+//    begin
+//      LActItemListJson := LDocDict['ActItemListJson'];
+//    LDocList4ActItem := Collections.NewList<TActionItem>;
+//    LDocList4ActItem := DocList(LActItemListJson);
+//      LDocDict['ActItemListJson'] := '[]';
+//    end;
+
+//    LString := LDocList.Json;
+
+  FMacroManageList.Clear;
+  FMacroManageList.Data.LoadFromJson(LActItemListJson);
+
+  i := 0;
+
+  for LDocDict in LDocList.Objects do
+  begin
+    LMacroManagement := FMacroManageList.Items[i];
+    LMacroManagement.FActionList := Collections.NewList<IAction>;
+    LMacroManagement.FActionItemList := Collections.NewList<TActionItem>;
+    LActItemListJson := LDocDict['ActItemListJson'];
+    LMacroManagement.FActionItemList.Data.LoadFromJson(LActItemListJson);
+    Inc(i);
+  end;
+end;
+
 function TMacroManagements.LoadFromJSONFile(AFileName, APassPhrase: string;
   AIsEncrypt: Boolean): integer;
 var
   LStrList: TStringList;
   LValid: Boolean;
-  LString: RawUTF8;
   Fs: TFileStream;
   LMemStream: TMemoryStream;
+  LString: string;
 begin
   LStrList := TStringList.Create;
   try
@@ -353,8 +480,10 @@ begin
     end;
 
     SetLength(LString, Length(LStrList.Text));
-    LString := StringToUTF8(LStrList.Text);
-    JSONToObject(Self, PUTF8Char(LString), LValid, TMacroManagement, [j2oIgnoreUnknownProperty]);
+    LString := LStrList.Text;
+
+    LoadFromJson(LString);
+//    JSONToObject(Self, PUTF8Char(LString), LValid, TMacroManagement, [j2oIgnoreUnknownProperty]);
   finally
     LStrList.Free;
   end;
@@ -373,10 +502,34 @@ var
   LMemStream: TMemoryStream;
   Fs: TFileStream;
   LStr: RawUTF8;
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+//  LVar: variant;
+  LMacroManagement: TMacroManagement;
+  i: integer;
 begin
   LStrList := TStringList.Create;
   try
-    LStr := ObjectToJSON(Self,[woHumanReadable,woStoreClassName]);
+//    LStr := ObjectToJSON(Self,[woHumanReadable,woStoreClassName]);
+    for LMacroManagement in FMacroManageList do
+    begin
+      LStr := LMacroManagement.FActionItemList.Data.SaveToJson();
+      LStrList.Add(Utf8ToString(LStr));
+    end;
+
+    LStr := FMacroManageList.Data.SaveToJson();
+    LDocList := DocList(LStr);
+
+    i := 0;
+
+    for LDocDict in LDocList.Objects do
+    begin
+      LDocDict['ActItemListJson'] := StringToUtf8(LStrList.Strings[i]);
+      Inc(i);
+    end;
+
+    LStrList.Clear;
+    LStr := LDocList.Json;
     LStrList.Add(UTF8ToString(LStr));
 
     if AIsEncrypt then
@@ -407,7 +560,7 @@ end;
 
 { TActionItem }
 
-class function TActionItem.AddActionItem2List(var AList: TActionList;
+class function TActionItem.AddActionItem2List(var AList: IList<IAction>;
   AItem: TActionItem; ADesc: string): IAction;
 var
   action: IAction;
@@ -476,28 +629,43 @@ begin
 
   action.SetExecMode(AItem.ExecMode);
 
-  if not Assigned(AList) then
-    AList := TActionList.Create;
+//  if not Assigned(AList) then
+//    AList := TActionList.Create;
 
   AList.Add(action);
 
   Result := action;
 end;
 
-procedure TActionItem.Assign(Source: TSynPersistent);
-begin
+//procedure TActionItem.Assign(Source: TSynPersistent);
+//begin
 //  inherited;
 
-  ActionCode := TActionItem(Source).FActionCode;
-  ActionDesc := TActionItem(Source).FActionDesc;
-  ActionType := TActionItem(Source).FActionType;
-  ExecMode := TActionItem(Source).FExecMode;
-  XPos := TActionItem(Source).FXPos;
-  YPos := TActionItem(Source).FYPos;
-  WaitSec := TActionItem(Source).FWaitSec;
-  InputText := TActionItem(Source).FInputText;
-  GridIndex := TActionItem(Source).FGridIndex;
-  VKExtendKey := TActionItem(Source).FVKExtendKey;
+//  ActionCode := TActionItem(Source).FActionCode;
+//  ActionDesc := TActionItem(Source).FActionDesc;
+//  ActionType := TActionItem(Source).FActionType;
+//  ExecMode := TActionItem(Source).FExecMode;
+//  XPos := TActionItem(Source).FXPos;
+//  YPos := TActionItem(Source).FYPos;
+//  WaitSec := TActionItem(Source).FWaitSec;
+//  InputText := TActionItem(Source).FInputText;
+//  GridIndex := TActionItem(Source).FGridIndex;
+//  VKExtendKey := TActionItem(Source).FVKExtendKey;
+//end;
+
+procedure TActionItem.AssignTo(ADest: TActionItem);
+begin
+  ADest.ActionCode := ActionCode;
+  ADest.ActionDesc := ActionDesc;
+  ADest.CustomDesc := CustomDesc;
+  ADest.ActionType := ActionType;
+  ADest.ExecMode := ExecMode;
+  ADest.XPos := XPos;
+  ADest.YPos := YPos;
+  ADest.WaitSec := WaitSec;
+  ADest.GridIndex := GridIndex;
+  ADest.VKExtendKey := VKExtendKey;
+  ADest.InputText := InputText;
 end;
 
 procedure TActionItem.CopyActionList(ADest: TActionList);
@@ -505,7 +673,29 @@ begin
 
 end;
 
+function TActionItem.ToString: string;
+begin
+
+end;
+
 { TMacroManagement }
+
+procedure TMacroManagement.Action2HW(Action: IAction);
+begin
+end;
+
+procedure TMacroManagement.AddTypeMsgMacro2ActItemList(AMsg: string);
+var
+  LActItem: TActionItem;
+begin
+  LActItem := TActionItem.Create;
+  LActItem.FActionCode := g_ActionType.ToString(atMessage);//'Type message';
+  LActItem.FActionType := atMessage;
+  LActItem.InputText := AMsg;
+  LActItem.FActionDesc := 'Message: ' + AMsg;
+
+  FActionItemList.Add(LActItem)
+end;
 
 procedure TMacroManagement.ChangeMacroName(AMacroName: string);
 begin
@@ -516,16 +706,37 @@ procedure TMacroManagement.Clear;
 var
   i: integer;
 begin
-  if Assigned(FActionList) then
-    FActionList.Free;
+//  if Assigned(FActionList) then
+//    FActionList.Free;
 
-  if Assigned(FActionCollection) then
-    FActionCollection.Free;
+//  if Assigned(FActionCollection) then
+//    FActionCollection.Free;
 
   for i := Low(MacroArray) to High(MacroArray) do
     MacroArray[i].Free;
 
   SetLength(FMacroArray, 0);
+end;
+
+procedure TMacroManagement.CopyActionItemList(ASrc: IList<TActionItem>;
+  var ADest: IList<TActionItem>);
+var
+  LSrcItem, LDestItem: TActionItem;
+  i: integer;
+begin
+  ADest.Clear;
+
+//  ASrc.Data.CopyTo(ADest.Data^, True);
+
+  for i := 0 to ASrc.Count - 1 do
+  begin
+    LSrcItem := ASrc.Items[i];
+    LDestItem := TActionItem.Create;
+    LSrcItem.AssignTo(LDestItem);
+//    ASrc.Data.ItemCopyAt(i, @LDestItem);
+//    ASrc.Pop(LActionItem, [popFromHead]);
+    ADest.Add(LDestItem);
+  end;
 end;
 
 destructor TMacroManagement.Destroy;
@@ -550,13 +761,118 @@ begin
   Result := TMacroCollection(FMacroArray[i-1]).Add;
 end;
 
+procedure TMacroManagement.ExecuteActionList;
+var
+  i, j: Integer;
+  action: IAction;
+  LIsVKDownStatus: Boolean;
+  LPrevVKExtendKey: integer;
+  LRec    : TMacroSignalEventRec;
+  LExecuteMode: TExecuteMode;
+begin
+  if RepeatCount > 0 then
+  begin
+    for j := 0 to RepeatCount - 1 do
+    begin
+      LIsVKDownStatus := False;
+      LPrevVKExtendKey := -1;
+
+      for i := 0 to FActionList.Count - 1 do
+      begin
+        FRepeatPos := i;
+        action := FActionList.Items[i];
+
+        //이전 Action의 VKExtendKey(LPrevVKExtendKey)와 현재 Action의 VKExtendKey가 다르면
+        //VKExtendKey 키 누름(Mouse Event 중 Extend Key가 눌려진 경우에만 사용됨)
+        if action.GetVKExtendKey <> LPrevVKExtendKey then
+        begin
+          if (action.GetActionType = atDragEnd) then
+          begin
+            if (LIsVKDownStatus) then
+            begin
+              action.SetVKExtendKey(LPrevVKExtendKey);
+              action.SetVKAction(2); //VKKey Key_Up
+              LIsVKDownStatus := False;
+            end;
+          end
+          else
+          begin
+            LPrevVKExtendKey := action.GetVKExtendKey;
+
+            //VKKey가 Key_Down되었다가 Key_Up 된 경우
+            if LPrevVKExtendKey = -1 then
+            begin
+              action.SetVKAction(2); //VKKey Key_Up
+              LIsVKDownStatus := False;
+            end
+            else if LPrevVKExtendKey <> 0 then
+            begin//VKKey가 Key_Down된 경우
+              action.SetVKAction(1); //VKKey Key_Down
+              LIsVKDownStatus := True;
+            end;
+          end;
+        end
+        else
+        begin
+          //Extend Key_Down상태에서 Mouse Drag가 끝난 경우 이전에 Key_Down을 Key_Up 해 줘야함
+          if (action.GetActionType = atDragEnd) then
+          begin
+            if (LIsVKDownStatus) then
+            begin
+              action.SetVKExtendKey(LPrevVKExtendKey);
+              action.SetVKAction(2); //VKKey Key_Up
+            end;
+          end
+          else
+          if LPrevVKExtendKey <> -1 then//이전 Action과 VKExtendKey값이 같으므로 VKExtendKey키를 누르지 않기 위해 -1을 할당함
+            action.SetVKExtendKey(-1);
+        end;
+
+        LExecuteMode := action.GetExecMode();
+
+        case LExecuteMode of
+          emSWEvent,
+          emDriver : action.Execute(LExecuteMode,True);
+          emHardware: Action2HW(action);
+        end;
+
+        Sleep(10);//200
+
+        if FBreakExecute then
+          break;
+      end;
+
+      if FBreakExecute then
+        break;
+    end;//for
+  end;
+end;
+
+procedure TMacroManagement.ExecuteActItemList;
+begin
+  SetActionItemList2ActionList();
+  ExecuteActionList();
+end;
+
 procedure TMacroManagement.SetActionColl2ActionList;
 var
   i: integer;
 begin
-  for i := 0 to FActionCollection.Count - 1 do
+//  for i := 0 to FActionCollection.Count - 1 do
+//  begin
+//    TActionItem.AddActionItem2List(FActionList, FActionCollection.Item[i].ActionItem);
+//  end;
+end;
+
+procedure TMacroManagement.SetActionItemList2ActionList;
+var
+  LActionItem: TActionItem;
+begin
+  FActionList.Clear;
+
+  for LActionItem in FActionItemList do
   begin
-    TActionItem.AddActionItem2List(FActionList, FActionCollection.Item[i].ActionItem);
+    TActionItem.AddActionItem2List(FActionList, LActionItem);
   end;
 end;
 
