@@ -46,7 +46,7 @@ type
     procedure MoveMail2Folder(AOriginalEntryId, AOriginalStoreId, AFolderPath: string);
     procedure ShowMailContents(AEntryId, AStoreId: string);
 
-    procedure AddAppointment2OL(AMAPIFolder: OLEVariant);
+    procedure AddAppointment2OL(var AOLAppointRec: TOLAppointmentRec);
 
   protected
     procedure Execute; override;
@@ -74,7 +74,7 @@ uses UnitStringUtil, UnitMiscUtil;
 
 { TOLControlWorker }
 
-procedure TOLControlWorker.AddAppointment2OL(AMAPIFolder: OLEVariant);
+procedure TOLControlWorker.AddAppointment2OL(var AOLAppointRec: TOLAppointmentRec);
 var
   LAppointmentItem:OLEVariant;
 begin
@@ -85,22 +85,29 @@ begin
 
   LAppointmentItem := FOutlook.CreateItem(olAppointmentItem);
 
-  if VarIsNull(LAppointmentItem) then
+  if not VarIsNull(LAppointmentItem) then
   begin
     try
-      LAppointmentItem.MeetingStatus := 1; //olMeeting = 1; set to 0 if there are no recipients/attendees
-      LAppointmentItem.Subject := 'Outlook Meeting Item';
-      LAppointmentItem.Body := 'This Microsoft Outlook calendar meeting was created programmatically by Delphi!' + #13#10 + 'Calendar meeting invitations were sent to required and optional attendees.';
-      LAppointmentItem.Location := 'My office';
-      LAppointmentItem.AllDayEvent := False;
-      LAppointmentItem.Start := EncodeDateTime(2022, 8, 7, 10, 0, 0, 0);
-      LAppointmentItem.End := EncodeDateTime(2022, 8, 7, 10, 50, 0, 0);
-      LAppointmentItem.Recipients.Add('recipient1@example.com'); //change the recipient email address
-      LAppointmentItem.Recipients.Add('recipient2@example.com'); //change the recipient email address
-      LAppointmentItem.RequiredAttendees := 'recipient1@example.com'; //change the recipient email address
-      LAppointmentItem.OptionalAttendees := 'recipient2@example.com'; //change the recipient email address
+//      LAppointmentItem.MeetingStatus := 1; //olMeeting = 1; set to 0 if there are no recipients/attendees
+//      LAppointmentItem.Subject := 'Outlook Meeting Item';
+//      LAppointmentItem.Body := 'This Microsoft Outlook calendar meeting was created programmatically by Delphi!' + #13#10 + 'Calendar meeting invitations were sent to required and optional attendees.';
+//      LAppointmentItem.Location := 'My office';
+//      LAppointmentItem.AllDayEvent := False;
+//      LAppointmentItem.Start := EncodeDateTime(2022, 8, 7, 10, 0, 0, 0);
+//      LAppointmentItem.End := EncodeDateTime(2022, 8, 7, 10, 50, 0, 0);
+//      LAppointmentItem.Recipients.Add('recipient1@example.com'); //change the recipient email address
+//      LAppointmentItem.Recipients.Add('recipient2@example.com'); //change the recipient email address
+//      LAppointmentItem.RequiredAttendees := 'recipient1@example.com'; //change the recipient email address
+//      LAppointmentItem.OptionalAttendees := 'recipient2@example.com'; //change the recipient email address
+
+      LAppointmentItem.Subject := AOLAppointRec.Subject;
+      LAppointmentItem.Body := AOLAppointRec.Body;
+      LAppointmentItem.Start := AOLAppointRec.Start;
+      LAppointmentItem.End_ := AOLAppointRec.End_;
       LAppointmentItem.Save;
       LAppointmentItem.Send;
+
+      AOLAppointRec.EntryID := LAppointmentItem.EntryID;
     finally
       LAppointmentItem := Unassigned;
     end;
@@ -521,8 +528,26 @@ begin
 end;
 
 procedure TOLControlWorker.ProcessAddAppointment(AMsg: TOmniMessage);
+var
+  LOLAppointRec: TOLAppointmentRec;
+  LOLRespondRec: TOLRespondRec;
+  LOmniMsg: TOmniMessage;
+  LValue: TOmniValue;
 begin
+  LOLAppointRec := AMsg.MsgData.ToRecord<TOLAppointmentRec>;
+  FormHandle := LOLAppointRec.FSenderHandle;
 
+  //outlook에 등록: EntryId가 LOLAppointRec.EntryId에 채워짐
+  AddAppointment2OL(LOLAppointRec);
+
+  LOLRespondRec.FID := AMsg.MsgID;
+  LOLRespondRec.FMsg := RecordSaveJson(LOLAppointRec, TypeInfo(TOLAppointmentRec));
+  LOLRespondRec.FSenderHandle := FormHandle;
+
+  LValue := TOmniValue.FromRecord(LOLRespondRec);
+  LOmniMsg := TOmniMessage.Create(Ord(olrkAddAppointment), LValue);
+
+  ProcessRespondData(LOmniMsg);
 end;
 
 procedure TOLControlWorker.ProcessCommandProc(AMsg: TOmniMessage);

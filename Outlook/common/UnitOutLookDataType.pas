@@ -57,6 +57,35 @@ type
     procedure Clear;
   end;
 
+  TOLAppointmentRec = packed record
+    EntryID: WideString;
+    Body: WideString;
+    Categories: WideString;
+    Companies: WideString;
+    ConversationIndex: WideString;
+    ConversationTopic: WideString;
+    CreationTime: TDateTime;
+    LastModificationTime: TDateTime;
+    Mileage: WideString;
+    Subject: WideString;
+    Duration: Integer;
+    Start: TDateTime;
+    End_: TDateTime;
+    IsOnlineMeeting: WordBool;
+    Location: WideString;
+    OptionalAttendees: WideString;
+    Organizer: WideString;
+    ReminderSet: WordBool;
+    ReminderMinutesBeforeStart: Integer;
+    RequiredAttendees: WideString;
+
+    FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
+  end;
+
+  TOLCalendarRec = packed record
+
+  end;
+
   TOLCommandKind = (
     olckInitVar,
     olckAddAppointment,
@@ -90,6 +119,7 @@ const
   R_OLRespondKind : array[Low(TOLRespondKind)..High(TOLRespondKind)] of string =
     (
       'Init Outlook OK',
+      'Appointment Added',
       'MAPIFolder List',
       'Log',
       'Selected Mail Item',
