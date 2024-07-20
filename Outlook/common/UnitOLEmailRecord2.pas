@@ -12,8 +12,11 @@ type
     // False = FrameOLEmaiList4Ole에서 TOLControlWorker 사용 안 함(HiconisASManager에서 Start함)
     IsUseOLControlWorkerFromEmailList: Boolean;
     IsDocFromInvoiceManage: Boolean;
-    IPCMQFromOLEmail, //FrameOLEmaiList4Ole에서 HiconisASManager로 OL Command 요청
-    IPCMQ2OLEmail: TOmniMessageQueue; //HiconisASManager에서 FrameOLEmaiList4Ole로 OL Respond 전송
+    IPCMQCommandOLEmail, //FrameOLEmaiList4Ole에서 HiconisASManager로 OL Command 요청
+    IPCMQ2RespondOLEmail,    //HiconisASManager에서 FrameOLEmaiList4Ole로 OL Respond 전송
+    IPCMQCommandOLCalendar,//FrmTodo_Detail.TToDoDetailF에서 HiconisASManager로 OL Command 요청
+    IPCMQ2RespondOLCalendar//HiconisASManager에서 FrmTodo_Detail.TToDoDetailF로 OL Respond 전송
+    : TOmniMessageQueue;
   end;
 
   TOLEmailSrchRec = packed record

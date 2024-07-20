@@ -138,6 +138,7 @@ type
     procedure CopyActionItemList(ASrc: IList<TActionItem>; var ADest: IList<TActionItem>);
     //AMsg를 Typing하는 TActionItem을 생성하여 FActionItemList에 추가함
     procedure AddTypeMsgMacro2ActItemList(AMsg: string);
+    procedure AddWaitMacro2ActItemList(AWaitTime: integer);
 
     procedure ExecuteActionList();
     procedure ExecuteActItemList();
@@ -178,6 +179,7 @@ type
     function AddMacro2List(AMacro: TMacroManagement): integer;
     procedure DeleteMacroFromListWithIndex(AIdx: integer);
     procedure ChangeMacroNameFromIndex(AIdx: integer; AMacroName: string);
+    function CreateMacroManagement(AMacro: TMacroManagement=nil): TMacroManagement;
 
     function LoadFromJson(AJson: string): integer;
     function GetBase64FromMacroManageList: string;
@@ -190,7 +192,8 @@ type
     function SaveToStream(AStream: TStream; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer;
 
     //Json 파일에서 Macro Load하여 ARootMacro.FMacroManageList에 추가
-    procedure AddMacro2RootFromJsonFile(AFileName: string; ARootMacro: TMacroManagements=nil);
+    //Result: 추가한 ARootMacro.FMacroManageList.Items.Index
+    function AddMacro2RootFromJsonFile(AFileName: string; ARootMacro: TMacroManagements=nil):integer;
   end;
 
   procedure CopyActionCollect(ASrc, ADest: TActionCollection);
@@ -276,19 +279,9 @@ var
   LMacroItem: TMacroItem;
   LActionItem: TActionItem;
 begin
-  LMacroManagement := TMacroManagement.Create;
-  LMacroManagement.CommIniFileName := AMacro.CommIniFileName;
-  LMacroManagement.MacroName := AMacro.MacroName;
-  LMacroManagement.RepeatCount := AMacro.RepeatCount;
-  LMacroManagement.IsExecute := AMacro.IsExecute;
-  LMacroManagement.FActionList := Collections.NewList<IAction>;// TActionList.Create;
-  LMacroManagement.FActionItemList := Collections.NewList<TActionItem>;//TActionList.Create;
-  LMacroManagement.CopyActionItemList(AMacro.FActionItemList, LMacroManagement.FActionItemList);
-//  LMacroManagement.FActionItemList.Data.LoadFromJson(LActItemListJson);
+  LMacroManagement := CreateMacroManagement(AMacro);
 
-//  LMacroManagement.FActionCollection.AssignCollect(AMacro.ActionCollect);
-
-  FMacroManageList.Add(LMacroManagement);
+  Result := FMacroManageList.Add(LMacroManagement);
 end;
 
 function TMacroManagements.AddMacro2ListWithName(AName: string): integer;
@@ -297,19 +290,17 @@ var
   LMacroItem: TMacroItem;
   LActionItem: TActionItem;
 begin
-  LMacroManagement := TMacroManagement.Create;
+  LMacroManagement := CreateMacroManagement(nil);
   LMacroManagement.CommIniFileName := '';
   LMacroManagement.MacroName := AName;
   LMacroManagement.RepeatCount := 1;
   LMacroManagement.IsExecute := True;
-  LMacroManagement.FActionList := Collections.NewList<IAction>;//TActionList.Create;
-  LMacroManagement.FActionItemList := Collections.NewList<TActionItem>;//TActionList.Create;
 
   Result := FMacroManageList.Add(LMacroManagement);
 end;
 
-procedure TMacroManagements.AddMacro2RootFromJsonFile(AFileName: string;
-  ARootMacro: TMacroManagements);
+function TMacroManagements.AddMacro2RootFromJsonFile(AFileName: string;
+  ARootMacro: TMacroManagements): integer;
 var
   i: integer;
 begin
@@ -320,7 +311,7 @@ begin
 
   for i := 0 to FMacroManageList.Count - 1 do
   begin
-    ARootMacro.AddMacro2List(FMacroManageList.Items[i]);
+    Result := ARootMacro.AddMacro2List(FMacroManageList.Items[i]);
   end;
 end;
 
@@ -350,6 +341,27 @@ end;
 constructor TMacroManagements.Create;
 begin
   FMacroManageList := Collections.NewList<TMacroManagement>;
+end;
+
+function TMacroManagements.CreateMacroManagement(AMacro: TMacroManagement): TMacroManagement;
+begin
+  Result := TMacroManagement.Create;
+
+  Result.FActionList := Collections.NewList<IAction>;// TActionList.Create;
+  Result.FActionItemList := Collections.NewList<TActionItem>;//TActionList.Create;
+
+  if Assigned(AMacro) then
+  begin
+    Result.CommIniFileName := AMacro.CommIniFileName;
+    Result.MacroName := AMacro.MacroName;
+    Result.RepeatCount := AMacro.RepeatCount;
+    Result.IsExecute := AMacro.IsExecute;
+
+    Result.CopyActionItemList(AMacro.FActionItemList, Result.FActionItemList);
+  end;
+//  Result.FActionItemList.Data.LoadFromJson(LActItemListJson);
+
+//  Result.FActionCollection.AssignCollect(AMacro.ActionCollect);
 end;
 
 procedure TMacroManagements.DeleteMacroFromListWithIndex(AIdx: integer);
@@ -697,6 +709,19 @@ begin
   FActionItemList.Add(LActItem)
 end;
 
+procedure TMacroManagement.AddWaitMacro2ActItemList(AWaitTime: integer);
+var
+  LActItem: TActionItem;
+begin
+  LActItem := TActionItem.Create;
+  LActItem.FActionCode := g_ActionType.ToString(atWait);
+  LActItem.FActionType := atWait;
+  LActItem.WaitSec := AWaitTime;
+  LActItem.FActionDesc := 'Wait (' + IntToStr(AWaitTime) + ' msec)';
+
+  FActionItemList.Add(LActItem)
+end;
+
 procedure TMacroManagement.ChangeMacroName(AMacroName: string);
 begin
   FMacroName := AMacroName;
@@ -741,7 +766,7 @@ end;
 
 destructor TMacroManagement.Destroy;
 begin
-  Clear;
+//  Clear;
 //  inherited;
 end;
 

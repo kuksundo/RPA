@@ -67,6 +67,7 @@ type
     olckFinal);
   TOLRespondKind = (
     olrkInitVar,
+    olrkAddAppointment,
     olrkMAPIFolderList,
     olrkLog,
     olrkSelMail4Explore,

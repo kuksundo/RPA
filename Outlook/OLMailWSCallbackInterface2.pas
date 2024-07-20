@@ -3,8 +3,8 @@ unit OLMailWSCallbackInterface2;
 interface
 
 uses SysUtils,
-  mormot.core.base, mormot.soa.core, mormot.core.interfaces,
-  UnitCommonWSInterface2;
+  mormot.core.base, mormot.soa.core, mormot.core.interfaces;
+  //UnitCommonWSInterface2;
 
 type
   TCommMode = (cmRESTful, cmWebSocket, cmCromisIPC);
@@ -39,8 +39,8 @@ implementation
 
 {$IFDEF USE_MORMOT_WS}
 initialization
-  TInterfaceFactory.RegisterInterfaces([
-    TypeInfo(IOLMailService),TypeInfo(IOLMailCallback)]);
+//  TInterfaceFactory.RegisterInterfaces([
+//    TypeInfo(IOLMailService),TypeInfo(IOLMailCallback)]);
 {$ENDIF}
 
 end.
