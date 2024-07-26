@@ -57,7 +57,30 @@ type
     procedure Clear;
   end;
 
-  TOLAppointmentRec = packed record
+  TOLMailRec = packed record
+    Body: WideString;
+    Categories: WideString;
+    Companies: WideString;
+    CreationTime: TDateTime;
+    ReceivedTime: TDateTime;
+    EntryID: WideString;
+//    Size: Integer;
+    Subject: WideString;
+    BCC: WideString;
+    CC: WideString;
+    HTMLBody: WideString;
+    Recipients: WideString;
+    SenderName: WideString;
+    BodyFormat: LongWord; //OlBodyFormat
+    SenderEmailAddress: WideString;
+    To_: WideString;
+
+    FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
+  end;
+
+  TOLObjectRec = packed record
+    OLObjectKind: LongWord; //TOLObjectKind
+
     EntryID: WideString;
     Body: WideString;
     Categories: WideString;
@@ -82,25 +105,28 @@ type
     FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
   end;
 
-  TOLCalendarRec = packed record
-
-  end;
+  TOLObjectKind = (olobjAppointment, olobjTask, olobjMeeting, olobjEvent, olobjNote, olobjContact, olobjVCard);
 
   TOLCommandKind = (
     olckInitVar,
-    olckAddAppointment,
+    olckAddObject,
     olckMoveMail2Folder,
     olckGetFolderList,
     olckGetSelectedMailItemFromExplorer,
     olckShowMailContents,
+    olckShowObject,
+    olckCreateMail,
     olckFinal);
   TOLRespondKind = (
     olrkInitVar,
-    olrkAddAppointment,
+    olrkAddObject,
     olrkMAPIFolderList,
     olrkLog,
     olrkSelMail4Explore,
-    olrkMoveMail2Folder
+    olrkMoveMail2Folder,
+    olrkShowObject,
+    olrkCreateMail,
+    olrkFinal
     );
 
 const
@@ -109,22 +135,29 @@ const
   R_OLCommandKind : array[Low(TOLCommandKind)..High(TOLCommandKind)] of string =
     (
       'Init Var',
-      'Add Appointment',
+      'Add Object',
       'Move Mail To Folder',
       'Get FolderList',
       'Get Selected MailItem From Explorer',
       'Show Mail Contents',
+      'Show Object',
+      'Create Mail',
       ''
     );
   R_OLRespondKind : array[Low(TOLRespondKind)..High(TOLRespondKind)] of string =
     (
       'Init Outlook OK',
-      'Appointment Added',
+      'Object Added',
       'MAPIFolder List',
       'Log',
       'Selected Mail Item',
-      'Move Mail to Folder'
+      'Move Mail to Folder',
+      'Show Object',
+      'Create Mail',
+      ''
     );
+
+function GetOLObjItemFromOLKind(const AOLObjKind: integer): LongWord;
 
 var
   g_OLCommandKind: TLabelledEnum<TOLCommandKind>;
@@ -145,6 +178,19 @@ begin
   FSubject := '';
   FReceiveDate := 0;
   FMailItem := nil;
+end;
+
+function GetOLObjItemFromOLKind(const AOLObjKind: integer): LongWord;
+begin
+  case TOLObjectKind(AOLObjKind) of
+    olobjAppointment: Result := olAppointmentItem;
+    olobjTask: Result := olTaskItem;
+    olobjMeeting: Result := olAppointmentItem;
+    olobjEvent: Result := olAppointmentItem;
+    olobjNote: Result := olNoteItem;
+    olobjContact: Result := olContactItem;
+    olobjVCard: Result := olAppointmentItem;
+  end;
 end;
 
 { TEntryIdRecord }

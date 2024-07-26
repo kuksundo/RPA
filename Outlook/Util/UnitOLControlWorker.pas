@@ -46,7 +46,12 @@ type
     procedure MoveMail2Folder(AOriginalEntryId, AOriginalStoreId, AFolderPath: string);
     procedure ShowMailContents(AEntryId, AStoreId: string);
 
-    procedure AddAppointment2OL(var AOLAppointRec: TOLAppointmentRec);
+    procedure AddObject2OL(var AOLObjRec: TOLObjectRec);
+    procedure ShowObject(AOLAppointRec: TOLObjectRec);
+
+    procedure CreateOLMail(AOLMailRec: TOLMailRec);
+
+    procedure AssignItemFieldByOLObjKind(AObjectItem: OLEVariant; AOLObjRec: TOLObjectRec; AItem: Integer);
 
   protected
     procedure Execute; override;
@@ -58,7 +63,9 @@ type
     procedure ProcessGetSelectedMailItemFromExplorer(AMsg: TOmniMessage);
     procedure ProcessShowMailContents(AMsg: TOmniMessage);
     procedure ProcessMoveMail2Folder(AMsg: TOmniMessage);
-    procedure ProcessAddAppointment(AMsg: TOmniMessage);
+    procedure ProcessAddObject(AMsg: TOmniMessage);
+    procedure ProcessShowObject(AMsg: TOmniMessage);
+    procedure ProcessCreateMail(AMsg: TOmniMessage);
   public
     constructor Create(commandQueue, responseQueue, sendQueue: TOmniMessageQueue; AFormHandle: THandle);
     destructor Destroy(); override;
@@ -74,44 +81,75 @@ uses UnitStringUtil, UnitMiscUtil;
 
 { TOLControlWorker }
 
-procedure TOLControlWorker.AddAppointment2OL(var AOLAppointRec: TOLAppointmentRec);
+procedure TOLControlWorker.AddObject2OL(var AOLObjRec: TOLObjectRec);
 var
-  LAppointmentItem:OLEVariant;
+  LObjectItem:OLEVariant;
+  LItem: LongWord;
 begin
   if VarIsNull(FOLCalendarFolder) or VarIsEmpty(FOLCalendarFolder) then
   begin
     FOLCalendarFolder := FOLMAPINameSpace.GetDefaultFolder(olFolderCalendar);
   end;
 
-  LAppointmentItem := FOutlook.CreateItem(olAppointmentItem);
+  LItem := GetOLObjItemFromOLKind(AOLObjRec.OLObjectKind);
+  LObjectItem := FOutlook.CreateItem(LItem);
 
-  if not VarIsNull(LAppointmentItem) then
+  if not VarIsNull(LObjectItem) then
   begin
     try
-//      LAppointmentItem.MeetingStatus := 1; //olMeeting = 1; set to 0 if there are no recipients/attendees
-//      LAppointmentItem.Subject := 'Outlook Meeting Item';
-//      LAppointmentItem.Body := 'This Microsoft Outlook calendar meeting was created programmatically by Delphi!' + #13#10 + 'Calendar meeting invitations were sent to required and optional attendees.';
-//      LAppointmentItem.Location := 'My office';
-//      LAppointmentItem.AllDayEvent := False;
-//      LAppointmentItem.Start := EncodeDateTime(2022, 8, 7, 10, 0, 0, 0);
-//      LAppointmentItem.End := EncodeDateTime(2022, 8, 7, 10, 50, 0, 0);
-//      LAppointmentItem.Recipients.Add('recipient1@example.com'); //change the recipient email address
-//      LAppointmentItem.Recipients.Add('recipient2@example.com'); //change the recipient email address
-//      LAppointmentItem.RequiredAttendees := 'recipient1@example.com'; //change the recipient email address
-//      LAppointmentItem.OptionalAttendees := 'recipient2@example.com'; //change the recipient email address
+//      LObjectItem.MeetingStatus := 1; //olMeeting = 1; set to 0 if there are no recipients/attendees
+//      LObjectItem.Subject := 'Outlook Meeting Item';
+//      LObjectItem.Body := 'This Microsoft Outlook calendar meeting was created programmatically by Delphi!' + #13#10 + 'Calendar meeting invitations were sent to required and optional attendees.';
+//      LObjectItem.Location := 'My office';
+//      LObjectItem.AllDayEvent := False;
+//      LObjectItem.Start := EncodeDateTime(2022, 8, 7, 10, 0, 0, 0);
+//      LObjectItem.End := EncodeDateTime(2022, 8, 7, 10, 50, 0, 0);
+//      LObjectItem.Recipients.Add('recipient1@example.com'); //change the recipient email address
+//      LObjectItem.Recipients.Add('recipient2@example.com'); //change the recipient email address
+//      LObjectItem.RequiredAttendees := 'recipient1@example.com'; //change the recipient email address
+//      LObjectItem.OptionalAttendees := 'recipient2@example.com'; //change the recipient email address
+      AssignItemFieldByOLObjKind(LObjectItem, AOLObjRec, AOLObjRec.OLObjectKind);
 
-      LAppointmentItem.Subject := AOLAppointRec.Subject;
-      LAppointmentItem.Body := AOLAppointRec.Body;
-      LAppointmentItem.Start := AOLAppointRec.Start;
-      LAppointmentItem.End_ := AOLAppointRec.End_;
-      LAppointmentItem.Save;
-      LAppointmentItem.Send;
+      LObjectItem.Save;
+//      LObjectItem.Send;
 
-      AOLAppointRec.EntryID := LAppointmentItem.EntryID;
+      AOLObjRec.EntryID := LObjectItem.EntryID;
     finally
-      LAppointmentItem := Unassigned;
+      LObjectItem := Unassigned;
     end;
   end;
+end;
+
+procedure TOLControlWorker.AssignItemFieldByOLObjKind(AObjectItem: OLEVariant;
+  AOLObjRec: TOLObjectRec; AItem: Integer);
+begin
+  AObjectItem.Subject := AOLObjRec.Subject;
+  AObjectItem.Body := AOLObjRec.Body;
+
+  case TOLObjectKind(AItem) of
+    olobjAppointment: begin
+      AObjectItem.Start := AOLObjRec.Start;
+      AObjectItem.End := AOLObjRec.End_;
+      AObjectItem.Categories := AOLObjRec.Categories;
+    end;
+    olobjTask: begin
+      AObjectItem.StartDate := AOLObjRec.Start;
+      AObjectItem.DueDate := AOLObjRec.End_;
+      AObjectItem.Categories := AOLObjRec.Categories;
+    end;
+    olobjMeeting: begin
+    end;
+    olobjEvent: begin
+    end;
+    olobjNote: begin
+    end;
+    olobjContact: begin
+
+    end;
+    olobjVCard: begin
+    end;
+  end;
+
 end;
 
 function TOLControlWorker.CheckIfExistFolder(AFolderPath: string): Boolean;
@@ -179,6 +217,34 @@ begin
         Result := LMAPIFolder;
       end;
     end;//while
+  end;
+end;
+
+procedure TOLControlWorker.CreateOLMail(AOLMailRec: TOLMailRec);
+var
+  LMailItem:OLEVariant;
+begin
+  if VarIsNull(FOLCalendarFolder) or VarIsEmpty(FOLCalendarFolder) then
+  begin
+    FOLCalendarFolder := FOLMAPINameSpace.GetDefaultFolder(olFolderCalendar);
+  end;
+
+  LMailItem := FOutlook.CreateItem(olMailItem);
+
+  if not VarIsNull(LMailItem) then
+  begin
+    try
+      LMailItem.Subject := AOLMailRec.Subject;
+      LMailItem.To := AOLMailRec.To_;
+      LMailItem.BCC := AOLMailRec.BCC;
+      LMailItem.CC := AOLMailRec.CC;
+      LMailItem.Body := AOLMailRec.Body;
+      LMailItem.HTMLBody := AOLMailRec.HTMLBody;
+
+      LMailItem.Display(False);
+    finally
+      LMailItem := Unassigned;
+    end;
   end;
 end;
 
@@ -527,25 +593,25 @@ begin
 
 end;
 
-procedure TOLControlWorker.ProcessAddAppointment(AMsg: TOmniMessage);
+procedure TOLControlWorker.ProcessAddObject(AMsg: TOmniMessage);
 var
-  LOLAppointRec: TOLAppointmentRec;
+  LOLAppointRec: TOLObjectRec;
   LOLRespondRec: TOLRespondRec;
   LOmniMsg: TOmniMessage;
   LValue: TOmniValue;
 begin
-  LOLAppointRec := AMsg.MsgData.ToRecord<TOLAppointmentRec>;
+  LOLAppointRec := AMsg.MsgData.ToRecord<TOLObjectRec>;
   FormHandle := LOLAppointRec.FSenderHandle;
 
   //outlook에 등록: EntryId가 LOLAppointRec.EntryId에 채워짐
-  AddAppointment2OL(LOLAppointRec);
+  AddObject2OL(LOLAppointRec);
 
   LOLRespondRec.FID := AMsg.MsgID;
-  LOLRespondRec.FMsg := RecordSaveJson(LOLAppointRec, TypeInfo(TOLAppointmentRec));
+  LOLRespondRec.FMsg := RecordSaveJson(LOLAppointRec, TypeInfo(TOLObjectRec));
   LOLRespondRec.FSenderHandle := FormHandle;
 
   LValue := TOmniValue.FromRecord(LOLRespondRec);
-  LOmniMsg := TOmniMessage.Create(Ord(olrkAddAppointment), LValue);
+  LOmniMsg := TOmniMessage.Create(Ord(olrkAddObject), LValue);
 
   ProcessRespondData(LOmniMsg);
 end;
@@ -556,7 +622,7 @@ begin
     olckInitVar: begin
       ProcessInitOutlook(AMsg);
     end;
-    olckAddAppointment: ProcessAddAppointment(AMsg);
+    olckAddObject: ProcessAddObject(AMsg);
     olckGetFolderList: begin
       ProcessGetFolderList(AMsg);
     end;
@@ -569,7 +635,25 @@ begin
     olckShowMailContents: begin
       ProcessShowMailContents(AMsg);
     end;
+    olckShowObject: begin
+      ProcessShowObject(AMsg);
+    end;
+    olckCreateMail: begin
+      ProcessCreateMail(AMsg);
+    end;
   end;
+end;
+
+procedure TOLControlWorker.ProcessCreateMail(AMsg: TOmniMessage);
+var
+  LOLMailRec: TOLMailRec;
+  LOLRespondRec: TOLRespondRec;
+  LOmniMsg: TOmniMessage;
+begin
+  LOLMailRec := AMsg.MsgData.ToRecord<TOLMailRec>;
+  FormHandle := LOLMailRec.FSenderHandle;
+
+  CreateOLMail(LOLMailRec);
 end;
 
 procedure TOLControlWorker.ProcessGetFolderList(AMsg: TOmniMessage);
@@ -700,6 +784,18 @@ begin
   RespondEnqueueAndNotifyMainComm(AMsg, MSG_RESULT);
 end;
 
+procedure TOLControlWorker.ProcessShowObject(AMsg: TOmniMessage);
+var
+  LOLAppointRec: TOLObjectRec;
+//  LOLRespondRec: TOLRespondRec;
+//  LOmniMsg: TOmniMessage;
+begin
+  LOLAppointRec := AMsg.MsgData.ToRecord<TOLObjectRec>;
+//  FormHandle := LOLAppointRec.FSenderHandle;
+
+  ShowObject(LOLAppointRec);
+end;
+
 procedure TOLControlWorker.ProcessShowMailContents(AMsg: TOmniMessage);
 var
   LEntryIdRecord: TEntryIdRecord;
@@ -727,6 +823,18 @@ begin
     SendMessage(FormHandle, AWinMsg, AWinMsg, 0)
   else
     raise System.SysUtils.Exception.Create('Response queue is full!');
+end;
+
+procedure TOLControlWorker.ShowObject(AOLAppointRec: TOLObjectRec);
+var
+  LAppointItem: OLEVariant;//ObjectItem;
+begin
+  LAppointItem := FOutlook.Session.GetItemFromID(AOLAppointRec.EntryID);// as ObjectItem;
+
+  if not VarIsNull(LAppointItem) then
+  begin
+    LAppointItem.Display(False);
+  end;
 end;
 
 procedure TOLControlWorker.ShowMailContents(AEntryId, AStoreId: string);
