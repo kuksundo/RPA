@@ -116,6 +116,7 @@ type
     olckShowMailContents,
     olckShowObject,
     olckCreateMail,
+    olcGotoFolder,
     olckFinal);
   TOLRespondKind = (
     olrkInitVar,
@@ -126,6 +127,7 @@ type
     olrkMoveMail2Folder,
     olrkShowObject,
     olrkCreateMail,
+    olrkGotoFolder,
     olrkFinal
     );
 
@@ -142,6 +144,7 @@ const
       'Show Mail Contents',
       'Show Object',
       'Create Mail',
+      'Go To Folder',
       ''
     );
   R_OLRespondKind : array[Low(TOLRespondKind)..High(TOLRespondKind)] of string =
@@ -154,6 +157,7 @@ const
       'Move Mail to Folder',
       'Show Object',
       'Create Mail',
+      'Go To Folder',
       ''
     );
 

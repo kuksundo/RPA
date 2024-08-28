@@ -66,6 +66,7 @@ type
     procedure ProcessAddObject(AMsg: TOmniMessage);
     procedure ProcessShowObject(AMsg: TOmniMessage);
     procedure ProcessCreateMail(AMsg: TOmniMessage);
+    procedure ProcessGotoFolder(AMsg: TOmniMessage);
   public
     constructor Create(commandQueue, responseQueue, sendQueue: TOmniMessageQueue; AFormHandle: THandle);
     destructor Destroy(); override;
@@ -158,10 +159,12 @@ var
   LFolderFullName: string;
 begin
   LFolderList := GetAllOLPublicFolderList(-1, True);
-
-  LFolderFullName := GetFolderPathFromRootNSubFolder(AFolderPath);
-
-  Result := LFolderList.IndexOf(LFolderFullName) > -1;
+  try
+    LFolderFullName := GetFolderPathFromRootNSubFolder(AFolderPath);
+    Result := LFolderList.IndexOf(LFolderFullName) > -1;
+  finally
+    LFolderList.Free;
+  end;
 end;
 
 constructor TOLControlWorker.Create(commandQueue, responseQueue,
@@ -641,6 +644,9 @@ begin
     olckCreateMail: begin
       ProcessCreateMail(AMsg);
     end;
+    olcGotoFolder: begin
+      ProcessGotoFolder(AMsg);
+    end;
   end;
 end;
 
@@ -704,6 +710,26 @@ begin
   end;
 end;
 
+procedure TOLControlWorker.ProcessGotoFolder(AMsg: TOmniMessage);
+var
+  LFolder   //MAPIFolder
+  : OLEVariant;
+  LEntryIdRecord: TEntryIdRecord;
+  LFolderPath: string;
+begin
+  LEntryIdRecord := AMsg.MsgData.ToRecord<TEntryIdRecord>;
+
+  //FFolderPath4Move : '\\great.park@hd.com;SHI8151\098'
+  if CheckIfExistFolder(LEntryIdRecord.FFolderPath4Move) then
+  begin
+    //세미콜론을 없애고 "\" 추가하여 하나로 합침 (\\great.park@hd.com\SHI8151\098)
+    LFolderPath := GetFolderPathFromRootNSubFolder(LEntryIdRecord.FFolderPath4Move);
+    LFolder := GetFolderObjectFromPath(LFolderPath);
+
+    FOutlook.ActiveExplorer.SelectFolder(LFolder);
+  end
+end;
+
 procedure TOLControlWorker.ProcessInitOutlook(AMsg: TOmniMessage);
 var
   LOmniMsg: TOmniMessage;
@@ -739,10 +765,10 @@ begin
   LEntryIdRecord := AMsg.MsgData.ToRecord<TEntryIdRecord>;
 
   LMailItem := FOLMAPINameSpace.GetItemFromID(LEntryIdRecord.FEntryId, LEntryIdRecord.FStoreId);
-
+  //FFolderPath4Move : '\\great.park@hd.com;SHI8151\098'
   if CheckIfExistFolder(LEntryIdRecord.FFolderPath4Move) then
   begin
-//    LFolder := FOLMAPINameSpace.GetFolderFromId(LEntryIdRecord.FEntryId4MoveRoot, LEntryIdRecord.FStoreId4MoveRoot);
+    //세미콜론을 없애고 "\" 추가하여 하나로 합침 (\\great.park@hd.com\SHI8151\098)
     LFolderPath := GetFolderPathFromRootNSubFolder(LEntryIdRecord.FFolderPath4Move);
     LFolder := GetFolderObjectFromPath(LFolderPath);
   end
