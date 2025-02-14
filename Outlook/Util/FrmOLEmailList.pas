@@ -9,7 +9,7 @@ uses
   OtlCommon, OtlComm,
   mormot.core.base, mormot.core.variants,
   FrameOLEmailList4Ole,
-  UnitOutLookDataType, UnitOLEmailRecord2, NxColumns, NxColumnClasses;
+  UnitOutLookDataType, UnitOLEmailRecord2, NxColumns, NxColumnClasses, Vcl.Menus;
 
 type
   TOLEmailListF = class(TForm)
@@ -25,6 +25,7 @@ type
     EmailPage: TAdvOfficePage;
     Button4: TButton;
     OLEmailListFr: TOutlookEmailListFr;
+    ShowDefaultFolderName1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Button1Click(Sender: TObject);
@@ -33,6 +34,7 @@ type
     procedure FormActivate(Sender: TObject);
     procedure OLEmailListFrBitBtn1Click(Sender: TObject);
     procedure OLEmailListFrAeroButton1Click(Sender: TObject);
+    procedure ShowDefaultFolderName1Click(Sender: TObject);
   private
   protected
     procedure InitVar();
@@ -111,6 +113,11 @@ end;
 procedure TOLEmailListF.OLEmailListFrBitBtn1Click(Sender: TObject);
 begin
   Close;
+end;
+
+procedure TOLEmailListF.ShowDefaultFolderName1Click(Sender: TObject);
+begin
+  ShowMessage(OLEmailListFr.FDefaultMoveFolder);
 end;
 
 end.

@@ -25,6 +25,7 @@ type
     procedure InitMAPI;
 
     //ALevelLimit: Folder depth 지정, 1 = Root folder에서 1단계 아래 Folder 까지만 반환함
+    //Result: FullFolderPath = EntryId;StoreId
     function GetAllOLPublicFolderList(ALevelLimit: integer=0; AIsOnlyFolderName: Boolean=False): TStringList;
     procedure GetOLFolderList(AFolderKind: integer); overload;
     procedure GetOLFolderList(AMAPIFolder: OLEVariant; AStrList: TStringList; ALevelLimit: integer; AIsOnlyFolderName: Boolean); overload;
@@ -334,17 +335,24 @@ begin
   StrToken(AFolderPath, '\');
   StrToken(AFolderPath, '\');
 
-  LFolderName := StrToken(AFolderPath, '\');
+  LFolderName := StrToken(AFolderPath, '\'); //"jhpark@hyundai-gs.com(2024)"
+
+  Log2MainComm('Root Folder Name : [' + LFolderName + '] => TOLControlWorker.GetFolderObjectFromPath()');
+  Log2MainComm('Root Folder Count : [' + IntToStr(FOLMAPINameSpace.Folders.Count) + '] => TOLControlWorker.GetFolderObjectFromPath()');
 
   for i := 1 to FOLMAPINameSpace.Folders.Count do
   begin
     Result := FOLMAPINameSpace.Folders.Item[i];
 
+    Log2MainComm('FOLMAPINameSpace.Folder.Name : [' + Result.Name + ']');
+
     if Result.Name = LFolderName then
+    begin
       Result := GetOLMAPIFolderByFolderName(Result, AFolderPath);
 
-    if not VarIsNull(Result) then
-      Break;
+      if not VarIsNull(Result) then
+        Break;
+    end;
   end;
 end;
 
@@ -429,11 +437,16 @@ var
 begin
   Result := null;
 
+  Log2MainComm('Sub-Folder Path : [' + AFolderPath + '] => TOLControlWorker.GetOLMAPIFolderByFolderName()');
+
   if AFolderPath = '' then
     Result := AMAPIFolder
   else
   begin
-    LFolderName := StrToken(AFolderPath, '\');
+    LFolderName := StrToken(AFolderPath, '\'); //HiCONIS(2024)
+
+    Log2MainComm('GetToken(AFolderPath, ''\'') : [' + LFolderName + '] => TOLControlWorker.GetOLMAPIFolderByFolderName()');
+    Log2MainComm('AFolderPath : [' + AFolderPath + '] => TOLControlWorker.GetOLMAPIFolderByFolderName()');
 
     if LFolderName <> '' then
     begin
@@ -494,8 +507,9 @@ begin
   LExplorer := FOutlook.ActiveExplorer;
   LSelection := LExplorer.Selection;
 
-  for i := 1 to LSelection.Count do
+  for i := LSelection.Count downto 1 do
   begin
+    TDocVariantData(LVar).Reset;
     LMailItem := LSelection.Item(i);
 
     //Item Name이 grid_Mail Column Name과 일치해야 함
@@ -765,29 +779,45 @@ begin
   LEntryIdRecord := AMsg.MsgData.ToRecord<TEntryIdRecord>;
 
   LMailItem := FOLMAPINameSpace.GetItemFromID(LEntryIdRecord.FEntryId, LEntryIdRecord.FStoreId);
-  //FFolderPath4Move : '\\great.park@hd.com;SHI8151\098'
+  //FFolderPath4Move : '\\jhpark@hd.com(2024)\HiCONIS(2024);SHI8151\098'
   if CheckIfExistFolder(LEntryIdRecord.FFolderPath4Move) then
   begin
     //세미콜론을 없애고 "\" 추가하여 하나로 합침 (\\great.park@hd.com\SHI8151\098)
     LFolderPath := GetFolderPathFromRootNSubFolder(LEntryIdRecord.FFolderPath4Move);
     LFolder := GetFolderObjectFromPath(LFolderPath);
+
+    Log2MainComm('Folder Exist : [' + LFolderPath + '] => TOLControlWorker.ProcessMoveMail2Folder()');
+    Log2MainComm('Existed Folder EntryID = [' + LFolder.EntryId + '] => TOLControlWorker.ProcessMoveMail2Folder()');
   end
   else
+  begin
     LFolder := CreateFolder2Path(LEntryIdRecord);
+
+    Log2MainComm('Folder Created : [' + LFolderPath + '] => TOLControlWorker.ProcessMoveMail2Folder()');
+    Log2MainComm('Created EntryID = [' + LFolder.EntryId + '] => TOLControlWorker.ProcessMoveMail2Folder()');
+  end;
 
   if (not VarIsNull(LMailItem)) and (not VarIsNull(LFolder)) then
   begin
     LDict := DocDict('{}');
     LDict.U['OldEntryId'] := LMailItem.EntryId;
 
+    Log2MainComm('Old Email EntryId = [' + LMailItem.EntryId + '] => TOLControlWorker.ProcessMoveMail2Folder()');
+
     LMailItem := LMailItem.Move(LFolder);
 
     LFolder := LMailItem.Parent;
+    LFolderPath := GetFolderFullPathByFolderObj(LFolder);
 
     LDict.U['NewEntryId'] := LMailItem.EntryId;
     LDict.U['NewStoreId'] := LFolder.StoreId;
     LDict.U['NewEntryId4Folder'] := LFolder.EntryId;
-    LDict.U['SavedOLFolderPath'] := GetFolderFullPathByFolderObj(LFolder);
+    LDict.U['SavedOLFolderPath'] := LFolderPath;
+
+//    Log2MainComm('New Email StoreId = [' + LMailItem.StoreId + '] => TOLControlWorker.ProcessMoveMail2Folder()');
+    Log2MainComm('New Email EntryId = [' + LMailItem.EntryId + '] => TOLControlWorker.ProcessMoveMail2Folder()');
+    Log2MainComm('New Folder EntryId = [' + LFolder.EntryId + '] => TOLControlWorker.ProcessMoveMail2Folder()');
+    Log2MainComm('SavedOLFolderPath = [' + LFolderPath + '] => TOLControlWorker.ProcessMoveMail2Folder()');
 
     LOLRespondRec.FID := Ord(olrkMoveMail2Folder);
     //이동한 Mail의 EntryId와 StoreId를 저장함

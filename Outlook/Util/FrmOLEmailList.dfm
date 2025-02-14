@@ -1207,9 +1207,18 @@ object OLEmailListF: TOLEmailListF
             ExplicitWidth = 719
           end
         end
+        inherited PopupMenu1: TPopupMenu
+          inherited ShowMailInfo1: TMenuItem
+            Visible = True
+            object ShowDefaultFolderName1: TMenuItem
+              Caption = 'Show Default Folder Name'
+              OnClick = ShowDefaultFolderName1Click
+            end
+          end
+        end
         inherited ImageList16x16: TImageList
           Bitmap = {
-            494C01012F009800E40610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+            494C01012F009800E80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
             000000000000360000002800000040000000C0000000010020000000000000C0
             0000000000000000000000000000000000000000000000000000000000000000
             0000000000000000000000000000000000000000000000000000000000000000
