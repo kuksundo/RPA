@@ -5,11 +5,11 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
-  AdvOfficePager,
+  AdvOfficePager, NxColumns, NxColumnClasses, NxCustomGridControl, Vcl.Menus,
   OtlCommon, OtlComm,
   mormot.core.base, mormot.core.variants,
-  FrameOLEmailList4Ole,
-  UnitOutLookDataType, UnitOLEmailRecord2, NxColumns, NxColumnClasses, Vcl.Menus;
+  FrameOLEmailList4Ole, UnitCopyData,
+  UnitOutLookDataType, UnitOLEmailRecord2, JvComponentBase, JvCaptionButton;
 
 type
   TOLEmailListF = class(TForm)
@@ -26,6 +26,7 @@ type
     Button4: TButton;
     OLEmailListFr: TOutlookEmailListFr;
     ShowDefaultFolderName1: TMenuItem;
+    JvCaptionButton1: TJvCaptionButton;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Button1Click(Sender: TObject);
@@ -33,15 +34,26 @@ type
     procedure Button4Click(Sender: TObject);
     procedure FormActivate(Sender: TObject);
     procedure OLEmailListFrBitBtn1Click(Sender: TObject);
-    procedure OLEmailListFrAeroButton1Click(Sender: TObject);
     procedure ShowDefaultFolderName1Click(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure OLEmailListFrgrid_MailCellDblClick(Sender: TObject; ACol,
+      ARow: Integer);
+    procedure JvCaptionButton1Click(Sender: TObject);
+    procedure OLEmailListFrButton1Click(Sender: TObject);
   private
   protected
     procedure InitVar();
     procedure DestroyVar();
+
+    procedure MailGridDblClick(Sender: TObject; ACol, ARow: Integer);
   public
+    FOwnerFormHandle: THandle;
+    FHiconisASManageMode: Boolean;
+
     procedure Log(AMsg: string);
   end;
+
+function CreateNShowOLEmailListForm(AOLEmailSrchRec: TOLEmailSrchRec): integer;
 
 var
   OLEmailListF: TOLEmailListF;
@@ -50,7 +62,31 @@ implementation
 
 {$R *.dfm}
 
-uses UnitSynLog2, UnitNextGridUtil2;
+uses UnitSynLog2, UnitNextGridUtil2, UnitDynamicFormManager;
+
+function CreateNShowOLEmailListForm(AOLEmailSrchRec: TOLEmailSrchRec): integer;
+var
+  LOLEmailListF: TOLEmailListF;
+begin
+  if not Assigned(g_GPFormManager) then
+    g_GPFormManager := TGPFormManager.Create;
+
+  LOLEmailListF := g_GPFormManager.CreateNewForm(nil, TOLEmailListF, False) as TOLEmailListF;
+
+  with LOLEmailListF do
+  begin
+    FOwnerFormHandle := AOLEmailSrchRec.FOwnerFormHandle;
+    FHiconisASManageMode := AOLEmailSrchRec.FHiconisASManageMode;
+    OLEmailListFr.AutoMoveCB.Checked := AOLEmailSrchRec.AutoMoveCBCheck;
+    OLEmailListFr.SubFolderCB.Checked := AOLEmailSrchRec.AutoMoveCBCheck;
+    OLEmailListFr.AeroButton1.Enabled := AOLEmailSrchRec.SaveToDBButtonEnable;
+    OLEmailListFr.BitBtn1.Enabled := AOLEmailSrchRec.CloseButtonEnable;
+    OLEmailListFr.InitVarFromOwner(AOLEmailSrchRec);
+    OLEmailListFr.grid_Mail.Options := OLEmailListFr.grid_Mail.Options + [goMultiSelect];
+
+    Show;
+  end;
+end;
 
 { TOLControlF }
 
@@ -83,6 +119,18 @@ begin
   DestroyVar();
 end;
 
+procedure TOLEmailListF.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  if Assigned(g_GPFormManager) then
+  begin
+    g_GPFormManager.DestroyForm(Handle);
+
+  if not g_GPFormManager.HandleIsExistInList(FOwnerFormHandle) then
+    SendMessage(FOwnerFormHandle, MSG_OLEMAILLISTF_CLOSE, 0, 0);
+  end;
+
+end;
+
 procedure TOLEmailListF.FormCreate(Sender: TObject);
 begin
   InitVar();
@@ -92,6 +140,19 @@ procedure TOLEmailListF.InitVar;
 begin
   InitSynLog();
   OLEmailListFr.FDefaultMoveFolder := '\\jhpark@hyundai-gs.com(2024)\HiCONIS(2024)';
+end;
+
+procedure TOLEmailListF.JvCaptionButton1Click(Sender: TObject);
+begin
+  if JvCaptionButton1.Down then
+    JvCaptionButton1.ImageIndex := 48
+  else
+    JvCaptionButton1.ImageIndex := 47;
+
+  if JvCaptionButton1.Down then
+    FormStyle := fsStayOnTop
+  else
+    FormStyle := fsNormal;
 end;
 
 procedure TOLEmailListF.Log(AMsg: string);
@@ -104,15 +165,38 @@ begin
   DoLog(AMsg, False, sllInfo);
 end;
 
-procedure TOLEmailListF.OLEmailListFrAeroButton1Click(Sender: TObject);
+procedure TOLEmailListF.MailGridDblClick(Sender: TObject; ACol, ARow: Integer);
+var
+  LStr: string;
 begin
-  OLEmailListFr.AeroButton1Click(Sender);
-
+  LStr := OLEmailListFr.grid_Mail.CellsByName['HullNo', ARow] + ';' + OLEmailListFr.grid_Mail.CellsByName['ClaimNo', ARow];
+  SendCopyData2(FOwnerFormHandle, LStr, ARow, 0);
+  Log('MailGridDblClick : ' + LStr);
 end;
 
 procedure TOLEmailListF.OLEmailListFrBitBtn1Click(Sender: TObject);
 begin
   Close;
+end;
+
+procedure TOLEmailListF.OLEmailListFrButton1Click(Sender: TObject);
+begin
+  OLEmailListFr.Button1Click(Sender);
+
+end;
+
+procedure TOLEmailListF.OLEmailListFrgrid_MailCellDblClick(Sender: TObject;
+  ACol, ARow: Integer);
+begin
+  if FHiconisASManageMode then
+  begin
+    MailGridDblClick(Sender, ACol, ARow);
+    Log('MailGridDblClick');
+  end
+  else
+  begin
+    OLEmailListFr.grid_MailCellDblClick(Sender, ACol, ARow);
+  end;
 end;
 
 procedure TOLEmailListF.ShowDefaultFolderName1Click(Sender: TObject);

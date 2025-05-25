@@ -2,10 +2,14 @@ unit UnitOutLookDataType;
 
 interface
 
-uses Outlook_TLB,
+uses Winapi.Messages,
+  Outlook_TLB,
   mormot.core.base,
   mormot.orm.base,
   UnitEnumHelper;
+
+const
+  MSG_OLEMAILLISTF_CLOSE = WM_USER + 9000;
 
 type
   TOLRespondRec = packed record
@@ -117,6 +121,9 @@ type
     olckShowObject,
     olckCreateMail,
     olcGotoFolder,
+    olcGetUnReadMailListFromFolder,
+    //FrameOLEmailList4Ole.grid_Email의 HullNo+ClaimNo가 HiconisASManageR.db3에 존재하는지 Check함
+    olcCheckExistClaimNoInDB,
     olckFinal);
   TOLRespondKind = (
     olrkInitVar,
@@ -128,8 +135,17 @@ type
     olrkShowObject,
     olrkCreateMail,
     olrkGotoFolder,
+    olrkUnReadMailList4Folder,
+    olrkUpdateExistClaimNo2Grid,
     olrkFinal
     );
+
+  TContainData4Mail = (cdmNone,
+    cdmClaimReport, cdmServiceReport, cdmInvoiceFromSubCon,
+    cdmFinal
+  );
+
+  TContainData4Mails = set of TContainData4Mail;
 
 const
   MEMO_LOG_MAX_LINE_COUNT = 100;
@@ -145,6 +161,8 @@ const
       'Show Object',
       'Create Mail',
       'Go To Folder',
+      'Get UnRead MailItem From Folder',
+      'Get If CalimNo is exist in DB',
       ''
     );
   R_OLRespondKind : array[Low(TOLRespondKind)..High(TOLRespondKind)] of string =
@@ -158,16 +176,27 @@ const
       'Show Object',
       'Create Mail',
       'Go To Folder',
+      'UnRead Mail Item',
+      'Update ClaimNo Exist',
       ''
     );
 
+  R_ContainData4Mail : array[Low(TContainData4Mail)..High(TContainData4Mail)] of string =
+    ('',
+      'Claim Report', 'Service Report', 'Invoice <- SubCon',
+    '');
+
 function GetOLObjItemFromOLKind(const AOLObjKind: integer): LongWord;
+function AdjustHullNo(AHullNo: string): string;
 
 var
   g_OLCommandKind: TLabelledEnum<TOLCommandKind>;
   g_OLRespondKind: TLabelledEnum<TOLRespondKind>;
+  g_ContainData4Mail: TLabelledEnum<TContainData4Mail>;
 
 implementation
+
+uses UnitStringUtil;
 
 { TOLMsgFileRecord }
 
@@ -197,10 +226,20 @@ begin
   end;
 end;
 
+function AdjustHullNo(AHullNo: string): string;
+var
+  LLetter, LNumber: string;
+begin
+  SplitLettersAndNumbers(AHullNo, LLetter, LNumber);
+  LLetter := GetLast3OfLetters(LLetter);
+  Result := LLetter + LNumber;
+end;
+
 { TEntryIdRecord }
 
 initialization
   g_OLCommandKind.InitArrayRecord(R_OLCommandKind);
   g_OLRespondKind.InitArrayRecord(R_OLRespondKind);
+//  g_ContainData4Mail.InitArrayRecord(R_ContainData4Mail);
 
 end.

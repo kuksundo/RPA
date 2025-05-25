@@ -3,7 +3,7 @@ object OLEmailListF: TOLEmailListF
   Top = 0
   Caption = 'OLEmailListF'
   ClientHeight = 589
-  ClientWidth = 735
+  ClientWidth = 818
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -14,13 +14,14 @@ object OLEmailListF: TOLEmailListF
   Position = poMainFormCenter
   OnActivate = FormActivate
   OnClose = FormClose
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 735
+    Width = 818
     Height = 25
     Align = alTop
     TabOrder = 0
@@ -28,7 +29,7 @@ object OLEmailListF: TOLEmailListF
   object AdvOfficePager1: TAdvOfficePager
     Left = 0
     Top = 25
-    Width = 735
+    Width = 818
     Height = 564
     Align = alClient
     ActivePage = EmailPage
@@ -322,7 +323,7 @@ object OLEmailListF: TOLEmailListF
     object LogPage: TAdvOfficePage
       Left = 1
       Top = 26
-      Width = 733
+      Width = 816
       Height = 536
       Caption = 'Log'
       PageAppearance.BorderColor = 14922381
@@ -383,7 +384,7 @@ object OLEmailListF: TOLEmailListF
       object Splitter1: TSplitter
         Left = 2
         Top = 96
-        Width = 729
+        Width = 812
         Height = 7
         Cursor = crVSplit
         Align = alBottom
@@ -419,7 +420,7 @@ object OLEmailListF: TOLEmailListF
       object Memo1: TMemo
         Left = 2
         Top = 103
-        Width = 729
+        Width = 812
         Height = 431
         Align = alBottom
         ScrollBars = ssVertical
@@ -447,7 +448,7 @@ object OLEmailListF: TOLEmailListF
     object EmailPage: TAdvOfficePage
       Left = 1
       Top = 26
-      Width = 733
+      Width = 816
       Height = 536
       Caption = 'Email'
       PageAppearance.BorderColor = 14922381
@@ -508,32 +509,32 @@ object OLEmailListF: TOLEmailListF
       inline OLEmailListFr: TOutlookEmailListFr
         Left = 2
         Top = 2
-        Width = 729
+        Width = 812
         Height = 532
         Align = alClient
         TabOrder = 0
         ExplicitLeft = 2
         ExplicitTop = 2
-        ExplicitWidth = 729
+        ExplicitWidth = 812
         ExplicitHeight = 532
         inherited mailPanel1: TPanel
-          Width = 729
+          Width = 812
           Height = 532
-          ExplicitWidth = 729
+          ExplicitWidth = 812
           ExplicitHeight = 532
           inherited tabMail: TTabControl
-            Width = 719
+            Width = 802
             Height = 442
-            ExplicitWidth = 719
+            ExplicitWidth = 802
             ExplicitHeight = 442
             inherited StatusBar: TStatusBar
               Top = 419
-              Width = 711
+              Width = 794
               ExplicitTop = 419
-              ExplicitWidth = 711
+              ExplicitWidth = 794
             end
             inherited EmailTab: TAdvOfficeTabSet
-              Width = 711
+              Width = 794
               AdvOfficeTabs = <
                 item
                   Caption = #51204#52404
@@ -1147,12 +1148,13 @@ object OLEmailListF: TOLEmailListF
                   TabAppearance.BackGround.ColorTo = clNone
                   TabAppearance.BackGround.Direction = gdHorizontal
                 end>
-              ExplicitWidth = 711
+              ExplicitWidth = 794
             end
             inherited grid_Mail: TNextGrid
-              Width = 711
+              Width = 794
               Height = 386
-              ExplicitWidth = 711
+              OnCellDblClick = OLEmailListFrgrid_MailCellDblClick
+              ExplicitWidth = 794
               ExplicitHeight = 386
               inherited TaskID: TNxTextColumn
                 ParentFont = False
@@ -1161,6 +1163,9 @@ object OLEmailListF: TOLEmailListF
                 ParentFont = False
               end
               inherited ClaimNo: TNxTextColumn
+                ParentFont = False
+              end
+              inherited ExistInDB: TNxCheckBoxColumn
                 ParentFont = False
               end
               inherited Description: TNxButtonColumn
@@ -1185,26 +1190,29 @@ object OLEmailListF: TOLEmailListF
           end
           inherited panMailButtons: TPanel
             Top = 499
-            Width = 719
+            Width = 802
             ExplicitTop = 499
-            ExplicitWidth = 719
+            ExplicitWidth = 802
             inherited BitBtn1: TBitBtn
-              Left = 630
-              ExplicitLeft = 630
+              Left = 713
+              ExplicitLeft = 713
             end
             inherited AeroButton1: TAeroButton
-              OnClick = OLEmailListFrAeroButton1Click
+              ImageIndex = 7
             end
           end
           inherited panProgress: TPanel
-            Left = 512
+            Left = 595
             Top = 477
-            ExplicitLeft = 512
+            ExplicitLeft = 595
             ExplicitTop = 477
           end
           inherited Panel1: TPanel
-            Width = 719
-            ExplicitWidth = 719
+            Width = 802
+            ExplicitWidth = 802
+            inherited Button1: TButton
+              OnClick = OLEmailListFrButton1Click
+            end
           end
         end
         inherited PopupMenu1: TPopupMenu
@@ -1218,7 +1226,7 @@ object OLEmailListF: TOLEmailListF
         end
         inherited ImageList16x16: TImageList
           Bitmap = {
-            494C01012F009800E80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+            494C01012F009800500710001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
             000000000000360000002800000040000000C0000000010020000000000000C0
             0000000000000000000000000000000000000000000000000000000000000000
             0000000000000000000000000000000000000000000000000000000000000000
@@ -2811,5 +2819,20 @@ object OLEmailListF: TOLEmailListF
         end
       end
     end
+  end
+  object JvCaptionButton1: TJvCaptionButton
+    Alignment = taCenter
+    ButtonWidth = 30
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ImageIndex = 47
+    Images = DataModule1.ImageList16x16
+    Toggle = True
+    OnClick = JvCaptionButton1Click
+    Left = 32
+    Top = 232
   end
 end

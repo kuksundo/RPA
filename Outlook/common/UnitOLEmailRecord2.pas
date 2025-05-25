@@ -11,7 +11,13 @@ type
   THiconisASTaskEditConfig = record
     // False = FrameOLEmaiList4Ole에서 TOLControlWorker 사용 안 함(HiconisASManager에서 Start함)
     IsUseOLControlWorkerFromEmailList: Boolean;
-    IsDocFromInvoiceManage: Boolean;
+    //True = FrameOLEmailList->grid_Mail에 HullNo을 채워 줌
+    //False = Selected Email List를 Json Ary로 가져오기 위해서는 HullNo를 채우지 않음
+    //        이후 AI로 부터 Hull No/Claim No를 가져와서 채움
+    IsAllowUpdateHullNo2Grid,
+    IsDocFromInvoiceManage
+    : Boolean;
+
     IPCMQCommandOLEmail, //FrameOLEmaiList4Ole에서 HiconisASManager로 OL Command 요청
     IPCMQ2RespondOLEmail,    //HiconisASManager에서 FrameOLEmaiList4Ole로 OL Respond 전송
     IPCMQCommandOLCalendar,//FrmTodo_Detail.TToDoDetailF에서 HiconisASManager로 OL Command 요청
@@ -20,13 +26,22 @@ type
   end;
 
   TOLEmailSrchRec = packed record
+    //OLEmailListF를 생성한 Form Handle, Close시에 Owner에 Notify하기 위함
+    fOwnerFormHandle: THandle;
     FTaskID: TID;
     FHullNo,
     FClaimNo,
     FProjectNo,
     fOrderBy
     : RawUTF8;
-    // False = FrameOLEmaiList4Ole에서 TOLControlWorker 사용 안 함(HiconisASManager에서 Start함)
+    AutoMoveCBCheck,
+    SaveToDBButtonEnable,
+    CloseButtonEnable,
+    //HiconisASManageF->Tool->ShowEmailListForm1 메뉴 선택 시
+    //OLEmailListF의 grid_Mail Double Click 시 Frame의 DblClick Event를 변경하기 위함(True 일때 변경됨)
+    FHiconisASManageMode
+    :Boolean;
+    //FrmHiconisASTaskEdit Form을부터 전달 받은 Config Data
     FTaskEditConfig: THiconisASTaskEditConfig;
   end;
 
@@ -53,6 +68,7 @@ type
     fSubject,
     fSavedMsgFilePath,
     fSavedMsgFileName,
+    fFlagRequest,
     fDescription //메일 보충 설명
     : RawUTF8;
     fAttachCount: integer;
@@ -83,6 +99,7 @@ type
     property CC: RawUTF8 read fCarbonCopy write fCarbonCopy;
     property BCC: RawUTF8 read fBlindCC write fBlindCC;
     property Subject: RawUTF8 read fSubject write fSubject;
+    property FlagRequest: RawUTF8 read fFlagRequest write fFlagRequest;
     property Description: RawUTF8 read fDescription write fDescription;
     property SavedMsgFilePath: RawUTF8 read fSavedMsgFilePath write fSavedMsgFilePath;
     property SavedMsgFileName: RawUTF8 read fSavedMsgFileName write fSavedMsgFileName;
@@ -248,6 +265,7 @@ var
   LUtf8: RawUTF8;
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
+  LStr: string;
 begin
   LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
   LSQLEmailMsg := GetSQLOLEmailMsgFromSearchRec(ASearchRec);
@@ -258,7 +276,8 @@ begin
     while LSQLEmailMsg.FillOne do
     begin
       LUtf8 := LSQLEmailMsg.GetJSONValues(true, True, soSelect);
-      LDynArr.Add(LUtf8);
+      LStr := Utf8ToString(LUtf8);//메일 제목 한글이 깨지는 문제 때문에 추가함 - 2025-03-20
+      LDynArr.Add(LStr);
     end;
 
     LUtf8 := LDynArr.SaveToJSON;
@@ -489,6 +508,7 @@ begin
         LEmailMsg.ClaimNo := LVar.ClaimNo;
         LEmailMsg.ProjectNo := LVar.ProjectNo;
         LEmailMsg.Description := LVar.Description;
+        LEmailMsg.FlagRequest := LVar.FlagRequest;
 
         if LEmailMsg.IsUpdate then
           g_OLEmailMsgDB.Update(LEmailMsg)

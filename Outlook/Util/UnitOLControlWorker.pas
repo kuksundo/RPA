@@ -5,12 +5,14 @@ interface
 uses Windows, Winapi.Messages, System.SysUtils, System.SyncObjs, System.Classes,
   Variants, System.Win.ComObj, Vcl.ComCtrls, ActiveX, DateUtils,
   mormot.core.json, mormot.core.data, mormot.core.base, mormot.core.variants,
-  mormot.core.text,
+  mormot.core.text, mormot.core.unicode,
   OtlComm, OtlCommon,
   UnitWorker4OmniMsgQ, Outlook_TLB,
   UnitOutLookDataType;
 
 type
+  TOutlookNameType = (ntUnknown, ntStore, ntFolder);
+
   TOLControlWorker = class(TWorker2)
   strict private
     FOutlook,
@@ -36,16 +38,21 @@ type
     function CreateFolder2Path(AFolderPath: TEntryIdRecord): OLEVariant;//Folder;
     function GetOLMAPIFolderList4Recursive(AMAPIFolder: OLEVariant): OLEVariant;
     function GetOLMAPIFolderByFolderName(AMAPIFolder: OLEVariant; AFolderPath: string): OLEVariant;
-    //Folder Full Path를 이용하여 Folder 객체 반환함
-    function GetFolderObjectFromPath(AFolderPath: string): OLEVariant;
     //AFolderPath: Root Folder Path + ';' + SubFolder Path
     function GetFolderPathFromRootNSubFolder(AFolderPath: string): string;
     //Folder로 부터 Root 포함 Full Path를 반환함
     function GetFolderFullPathByFolderObj(AMAPIFolder: OLEVariant): string;
-
+    function GetVarFromMailItem(AMailItem: OLEVariant): variant;
+    //Folder Full Path를 이용하여 Folder 객체 반환함
+    function GetFolderObjectFromPath(AFolderPath: string): OLEVariant;
+    //읽지않은 Mail List를 Json Array 형식으로 반환 함
+    function GetUnReadMailItemsFromMAIFolder(AMAPIFolder: OLEVariant): RawUTF8;
+    function GetMailBoxObjectByName(AMailBoxName: string): OLEVariant;
+    function GetFolderByPath(const APath: string): OLEVariant;
     function GetSelectedMailItemsFromExplorer: RawUTF8; //Json Array 형식으로 반환 함
     procedure MoveMail2Folder(AOriginalEntryId, AOriginalStoreId, AFolderPath: string);
     procedure ShowMailContents(AEntryId, AStoreId: string);
+    function DetectOutlookNameType(const AName: string): TOutlookNameType;
 
     procedure AddObject2OL(var AOLObjRec: TOLObjectRec);
     procedure ShowObject(AOLAppointRec: TOLObjectRec);
@@ -68,6 +75,8 @@ type
     procedure ProcessShowObject(AMsg: TOmniMessage);
     procedure ProcessCreateMail(AMsg: TOmniMessage);
     procedure ProcessGotoFolder(AMsg: TOmniMessage);
+    procedure ProcessUnReadMailListFromFolder(AMsg: TOmniMessage);
+    procedure ProcessCheckExistClaimNoInDB(AMsg: TOmniMessage);
   public
     constructor Create(commandQueue, responseQueue, sendQueue: TOmniMessageQueue; AFormHandle: THandle);
     destructor Destroy(); override;
@@ -79,7 +88,7 @@ type
 
 implementation
 
-uses UnitStringUtil, UnitMiscUtil;
+uses UnitStringUtil, UnitMiscUtil, UnitBase64Util2;
 
 { TOLControlWorker }
 
@@ -266,6 +275,47 @@ begin
   inherited;
 end;
 
+function TOLControlWorker.DetectOutlookNameType(
+  const AName: string): TOutlookNameType;
+var
+  LStores, LStore, LRootFolder, LSubFolder: OLEVariant;
+  i, j: Integer;
+begin
+  Result := ntUnknown;
+
+  LStores := FOLMAPINameSpace.Stores;
+
+  // 1. Store 이름인지 검사
+  for i := 1 to LStores.Count do
+  begin
+    LStore := LStores.Item(i);
+    if SameText(LStore.DisplayName, AName) then
+    begin
+      Result := ntStore;
+      Exit;
+    end;
+
+    // 2. Folder 이름인지 검사
+    LRootFolder := LStore.GetRootFolder;
+    if SameText(LRootFolder.Name, AName) then
+    begin
+      Result := ntFolder;
+      Exit;
+    end;
+
+    // 재귀 또는 반복적으로 하위 폴더 검사
+    for j := 1 to LRootFolder.Folders.Count do
+    begin
+      LSubFolder := LRootFolder.Folders.Item(j);
+      if SameText(LSubFolder.Name, AName) then
+      begin
+        Result := ntFolder;
+        Exit;
+      end;
+    end;
+  end;
+end;
+
 procedure TOLControlWorker.Execute;
 var
   handles: array [0..1] of THandle;
@@ -303,6 +353,78 @@ begin
     LMAPIFolder := FOLMAPINameSpace.Folders.Item[i];
     GetOLFolderList(LMAPIFolder, Result, ALevelLimit, AIsOnlyFolderName);
   end;
+end;
+
+function TOLControlWorker.GetFolderByPath(const APath: string): OLEVariant;
+var
+  LStores, LStore, LFolder: OLEVariant;
+  PathParts: TArray<string>;
+  i, j: Integer;
+  Found: Boolean;
+begin
+  Result := Unassigned;
+  LStores := FOLMAPINameSpace.Stores;
+
+  // 예: \\홍길동@회사메일.com\받은 편지함\하위폴더
+  if APath.StartsWith('\\') then
+    PathParts := APath.Substring(2).Split(['\'])
+  else
+    PathParts := APath.Split(['\']);
+
+  if Length(PathParts) = 0 then Exit;
+
+  // 모든 Store에서 찾기
+  for i := 1 to LStores.Count do
+  begin
+    LStore := LStores.Item(i);
+
+    if SameText(LStore.DisplayName, PathParts[0]) then
+    begin
+      LFolder := LStore.GetRootFolder;
+
+      // 경로에 하위 폴더가 지정된 경우
+      if Length(PathParts) > 1 then
+      begin
+        Found := True;
+
+        for j := 1 to High(PathParts) do
+        begin
+          if LFolder.Folders.Count = 0 then
+          begin
+            Found := False;
+            Break;
+          end;
+
+          if not VarIsEmpty(LFolder.Folders.Item(PathParts[j])) then
+            LFolder := LFolder.Folders.Item(PathParts[j])
+          else
+          begin
+            Found := False;
+            Break;
+          end;
+        end;
+
+        if Found then
+        begin
+          Result := LFolder;
+          Exit;
+        end;
+      end
+      else
+      begin
+        // 경로가 Store만 가리킬 경우 → 첫 번째 하위 폴더 반환
+        if LFolder.Folders.Count > 0 then
+        begin
+          Result := LFolder.Folders.Item(1);
+          Exit;
+        end
+        else
+        begin
+          Exit;
+        end;
+      end;
+    end;
+  end;//for
 end;
 
 function TOLControlWorker.GetFolderFullPathByFolderObj(
@@ -370,6 +492,31 @@ begin
   LSubFolderName := LSubFolderName.Replace('/', '\');
 
   Result := LRootFolderName + LSubFolderName;
+end;
+
+function TOLControlWorker.GetMailBoxObjectByName(
+  AMailBoxName: string): OLEVariant;
+var
+  i: integer;
+  LStores: OLEVariant;
+begin
+  AMailboxName := StringReplace(AMailboxName, '\\', '', [rfReplaceAll]);
+  LStores := FOLMAPINameSpace.Stores;
+
+  for i := 1 to LStores.Count do
+  begin
+    Result := LStores.Item(i);
+    AMailboxName := Result.DisplayName;
+    // 사서함 이름 비교 (DisplayName 또는 FilePath 등)
+    if SameText(Result.DisplayName, AMailboxName) then
+    begin
+//      LRootFolder := LStore.GetRootFolder;
+//      ProcessUnreadMailsInFolder(LRootFolder);
+      Exit; // 대상 사서함 찾았으면 종료
+    end;
+  end;
+
+  Result := null;
 end;
 
 procedure TOLControlWorker.GetOLFolderList(AMAPIFolder: OLEVariant;
@@ -499,7 +646,6 @@ var
   LDynUtf8: TRawUTF8DynArray;
   LVar: variant;
   LUtf8: RawUTF8;
-  LStr: RawUTF8;
 begin
   TDocVariant.New(LVar);
   LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
@@ -509,45 +655,101 @@ begin
 
   for i := LSelection.Count downto 1 do
   begin
-    TDocVariantData(LVar).Reset;
     LMailItem := LSelection.Item(i);
-
-    //Item Name이 grid_Mail Column Name과 일치해야 함
-    LVar.LocalEntryId := LMailItem.EntryID;
-    LVar.Subject := LMailItem.Subject;
-    LVar.SenderEmail := LMailItem.SenderEmailAddress;
-    LVar.SenderName := LMailItem.SenderName;
-    LVar.CC := LMailItem.CC;
-    LVar.BCC := LMailItem.BCC;
-    LVar.HTMLBody := LMailItem.HTMLBody;
-    LVar.RecvDate := LMailItem.ReceivedTime;//VarFromDateTime()
-
-    LFolder := LMailItem.Parent;
-    LVar.SavedOLFolderPath := LFolder.FullFolderPath;
-    LVar.LocalStoreId := LFolder.StoreID;
-    LVar.FolderEntryId := LFolder.EntryID;
-    LRecipients := LMailItem.Recipients;
-
-    LAttachments := LMailItem.Attachments;
-    LVar.AttachCount := LAttachments.Count;
-
-    LStr := '';
-
-    for j := 1 to LRecipients.Count do
-    begin
-      LRecipient := LRecipients.Item(j);
-      LStr := LStr + LRecipient.Address + ';';
-    end;
-
-    LVar.Recipients := LStr;
+    LVar := GetVarFromMailItem(LMailItem);
 
     LUtf8 := _JSON(LVar);
-
     LDynArr.Add(LUtf8);
+
+    TDocVariantData(LVar).Reset;
   end;
 
   Result := LDynArr.SaveToJson;
+end;
 
+function TOLControlWorker.GetUnReadMailItemsFromMAIFolder(
+  AMAPIFolder: OLEVariant): RawUTF8;
+var
+  LItems, LFilteredItems, LMailItem
+  : OLEVariant;
+  i,j: integer;
+//  LDynArr: TDynArray;
+//  LDynUtf8: TRawUTF8DynArray;
+  LVar: variant;
+  LUtf8: RawUTF8;
+  LStr: RawUTF8;
+  LDocList: IDocList;
+begin
+  TDocVariant.New(LVar);
+  LDocList := DocList('[]');
+//  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+  LStr := AMAPIFolder.Name;
+  // Restrict to unread items
+  LItems := AMAPIFolder.Items;
+  LFilteredItems := LItems.Restrict('[Unread] = True');
+
+  for i := 1 to LFilteredItems.Count do
+  begin
+    // Only process mail items
+    if LFilteredItems.Item(i).Class = 43 then // 43 = olMail
+    begin
+      LMailItem := LFilteredItems.Item(i);
+      LVar := GetVarFromMailItem(LMailItem);
+
+//      LUtf8 := _JSON(LVar);
+      LDocList.Append(LVar);
+//      LDynArr.Add(LUtf8);
+
+      TDocVariantData(LVar).Reset;
+    end;
+  end;//for
+
+//  Result := LDynArr.SaveToJson;
+  Result := LDocList.Json;
+end;
+
+function TOLControlWorker.GetVarFromMailItem(AMailItem: OLEVariant): variant;
+var
+  LFolder,
+  LRecipients, //Recipients
+  LRecipient, //Recipient
+  LAttachments //Attachments
+  : OLEVariant;
+  LStr: RawUTF8;
+  i: integer;
+begin
+  TDocVariant.New(Result);
+  //MailItem Property Name이 grid_Mail Column Name과 일치해야 함
+  Result.LocalEntryId := AMailItem.EntryID;
+//  Result.Subject := MakeStringToBin64(AMailItem.Subject);
+  Result.Subject := AMailItem.Subject;
+  Result.SenderEmail := AMailItem.SenderEmailAddress;
+  Result.SenderName := AMailItem.SenderName;
+  Result.CC := AMailItem.CC;
+  Result.BCC := AMailItem.BCC;
+//  Result.HTMLBody := MakeStringToBin64(AMailItem.HTMLBody);
+  Result.HTMLBody := AMailItem.HTMLBody;
+  Result.RecvDate := AMailItem.ReceivedTime;//VarFromDateTime()
+  Result.FlagRequest := AMailItem.FlagRequest;
+
+  LFolder := AMailItem.Parent;
+  Result.SavedOLFolderPath := LFolder.FullFolderPath;
+  Result.LocalStoreId := LFolder.StoreID;
+  Result.FolderEntryId := LFolder.EntryID;
+  LRecipients := AMailItem.Recipients;
+
+  LAttachments := AMailItem.Attachments;
+  Result.AttachCount := LAttachments.Count;
+
+  LStr := '';
+
+  for i := 1 to LRecipients.Count do
+  begin
+    LRecipient := LRecipients.Item(i);
+    LStr := LStr + LRecipient.Address + ';';
+  end;
+
+  Result.Recipients := LStr;
 end;
 
 procedure TOLControlWorker.GetOLFolderList(AFolderKind: integer);
@@ -633,6 +835,25 @@ begin
   ProcessRespondData(LOmniMsg);
 end;
 
+procedure TOLControlWorker.ProcessCheckExistClaimNoInDB(AMsg: TOmniMessage);
+var
+  LValue: TOmniValue;
+  LOLRespondRec: TOLRespondRec;
+  LOmniMsg: TOmniMessage;
+begin
+  //FSenderHandle을 받음
+  LOLRespondRec := AMsg.MsgData.ToRecord<TOLRespondRec>;
+
+//  FormHandle := LOLRespondRec.FSenderHandle;
+  LOLRespondRec.FID := AMsg.MsgID;
+//  LOLRespondRec.FMsg := Utf8ToString(LJsonAry);
+
+  LValue := TOmniValue.FromRecord(LOLRespondRec);
+  LOmniMsg := TOmniMessage.Create(Ord(olrkUpdateExistClaimNo2Grid), LValue);
+
+  ProcessRespondData(LOmniMsg);
+end;
+
 procedure TOLControlWorker.ProcessCommandProc(AMsg: TOmniMessage);
 begin
   case TOLCommandKind(AMsg.MsgID) of
@@ -660,6 +881,12 @@ begin
     end;
     olcGotoFolder: begin
       ProcessGotoFolder(AMsg);
+    end;
+    olcGetUnReadMailListFromFolder: begin
+      ProcessUnReadMailListFromFolder(AMsg);
+    end;
+    olcCheckExistClaimNoInDB: begin
+      ProcessCheckExistClaimNoInDB(AMsg);
     end;
   end;
 end;
@@ -779,7 +1006,7 @@ begin
   LEntryIdRecord := AMsg.MsgData.ToRecord<TEntryIdRecord>;
 
   LMailItem := FOLMAPINameSpace.GetItemFromID(LEntryIdRecord.FEntryId, LEntryIdRecord.FStoreId);
-  //FFolderPath4Move : '\\jhpark@hd.com(2024)\HiCONIS(2024);SHI8151\098'
+  //FFolderPath4Move : '\\great.park@hd.com;SHI8151\098'
   if CheckIfExistFolder(LEntryIdRecord.FFolderPath4Move) then
   begin
     //세미콜론을 없애고 "\" 추가하여 하나로 합침 (\\great.park@hd.com\SHI8151\098)
@@ -850,6 +1077,36 @@ begin
 //  FormHandle := LOLAppointRec.FSenderHandle;
 
   ShowObject(LOLAppointRec);
+end;
+
+procedure TOLControlWorker.ProcessUnReadMailListFromFolder(AMsg: TOmniMessage);
+var
+  LFolder: OLEVariant;
+  LJsonAry: RawUTF8;
+  LValue: TOmniValue;
+  LOLRespondRec,
+  LOLRespondRec2: TOLRespondRec;
+  LOmniMsg: TOmniMessage;
+begin
+  //FSenderHandle을 받음
+  LOLRespondRec := AMsg.MsgData.ToRecord<TOLRespondRec>;
+  LFolder := GetFolderByPath(LOLRespondRec.FMsg);
+
+  if VarIsEmpty(LFolder) then
+    exit;
+
+  //Outlook에서 UnRead 상태인  MailList가 Array Json형태로 반환됨
+  //grid_Mail Column Name과 동일한 Name임
+  LJsonAry := GetUnReadMailItemsFromMAIFolder(LFolder);
+
+//  FormHandle := LOLRespondRec.FSenderHandle;
+  LOLRespondRec2.FID := AMsg.MsgID;
+  LOLRespondRec2.FMsg := Utf8ToString(LJsonAry);
+
+  LValue := TOmniValue.FromRecord(LOLRespondRec2);
+  LOmniMsg := TOmniMessage.Create(Ord(olrkUnReadMailList4Folder), LValue);
+
+  ProcessRespondData(LOmniMsg);
 end;
 
 procedure TOLControlWorker.ProcessShowMailContents(AMsg: TOmniMessage);
