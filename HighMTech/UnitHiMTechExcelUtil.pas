@@ -14,9 +14,11 @@ function ImportWorkTimeTagData2GridFromXlsFile(AFileName: string; AGrid: TNextGr
 function ImportWorkTimeTagData2GridFromString(AStr: RawByteString; AGrid: TNextGrid): integer;
 function ImportPaySlipData2GridFromXlsFile(AFileName: string; AGrid: TNextGrid): integer;
 
-function MakeHiMTechReport2ExcelByDataTypeFromGrid(AGrid: TNextGrid; ADataType: integer; ADate: TDate): integer;
+function MakeHiMTechReport2ExcelByDataTypeFromGrid(AGrid: TNextGrid; ADataType: integer; ADate: TDate; ASelectedOnly: Boolean=False): integer;
 function MakeDailyWorkReport2ExcelFromGrid(AOutFileName: string; AGrid: TNextGrid): integer;
-function MakePaySlipReport2ExcelFromGrid(AOutFileName: string; AGrid: TNextGrid; ADate: TDate): integer;
+function MakePaySlipReport2ExcelFromGrid(AOutFileName: string; AGrid: TNextGrid; ADate: TDate; ASelectedOnly: Boolean): integer;
+
+function SetPayData2ExcelRptBySheetNameFromGridRow(AGrid: TNextGrid; ARow: integer; ADate: TDate; AWorkSheet: OLEVariant): integer;
 
 implementation
 
@@ -81,14 +83,16 @@ begin
   end;
 end;
 
-function MakeHiMTechReport2ExcelByDataTypeFromGrid(AGrid: TNextGrid; ADataType: integer; ADate: TDate): integer;
+function MakeHiMTechReport2ExcelByDataTypeFromGrid(AGrid: TNextGrid; ADataType: integer;
+  ADate: TDate; ASelectedOnly: Boolean): integer;
 var
   LOutFileName, LTempFileName: string;
   LFileCopySuccess: Boolean;
+  LRow: integer;
 begin
   LOutFileName := GetOutFileNameByDataType(ADataType);
   EnsureDirectoryExists('c:\temp\');
-  LTempFileName := 'c:\temp\' + ChangeFileExt(ExtractFileName(LOutFileName), '-' + FormatDateTime('yyyymmddhhmiss' , now) + '.xlsx');
+  LTempFileName := 'c:\temp\' + ChangeFileExt(ExtractFileName(LOutFileName), '-' + FormatDateTime('yyyymmddhhnnss' , now) + '.xlsx');
   LTempFileName := StringReplace(LTempFileName, '-원본', '', [rfReplaceAll]);
   LFileCopySuccess := CopyFile(LOutFileName, LTempFileName, False);
 
@@ -99,12 +103,12 @@ begin
         MakeDailyWorkReport2ExcelFromGrid(LTempFileName, AGrid);
       end;
       hmtdtPayRollSheet: begin
-        MakePaySlipReport2ExcelFromGrid(LTempFileName, AGrid, ADate);
+        MakePaySlipReport2ExcelFromGrid(LTempFileName, AGrid, ADate, ASelectedOnly);
       end;
     end; //case
   end
   else
-    ShowMessage('파일 복사 실패 : ' + LTempFileName);
+    ShowMessage('파일 복사 실패 : [' + LOutFileName + '] --> [' + LTempFileName + ']');
 end;
 
 function MakeDailyWorkReport2ExcelFromGrid(AOutFileName: string; AGrid: TNextGrid): integer;
@@ -183,17 +187,15 @@ begin
   end;
 end;
 
-function MakePaySlipReport2ExcelFromGrid(AOutFileName: string; AGrid: TNextGrid; ADate: TDate): integer;
+function MakePaySlipReport2ExcelFromGrid(AOutFileName: string; AGrid: TNextGrid;
+  ADate: TDate;  ASelectedOnly: Boolean): integer;
 var
-  LRange: OleVariant;
   LWorksheet: OleVariant;
   LExcel: OleVariant;
   LWorkBook: OleVariant;
 
-  i, LRow, LCol, LFindFromRow: integer;
-  LEmployeeName, LEntryDate, LWagePerHour, LPaidDayOff, LAnnualLeave, LWeeklyLeave,
-  LOverTime, LWorkHour,
-  LRangeStr, LDateStr: string;
+  i: integer;
+  LEmployeeName: string;
 begin
   Result := -1;
 
@@ -208,10 +210,12 @@ begin
   LExcel.Visible := true;
 //  LWorksheet := LExcel.ActiveSheet;
 
-  LDateStr := FormatDateTime('yyyy년 mm월 급여명세표', ADate);
-
   for i := 0 to AGrid.RowCount - 1 do
   begin
+    if ASelectedOnly then
+      if not AGrid.Row[i].Selected then
+        Continue;
+
     LEmployeeName := GetCellDataByColCaptionFromGrid(AGrid, '성명', i);
     LWorksheet := CopySheet2WorkBookByName(LWorkBook, '1', LEmployeeName);
 
@@ -220,33 +224,8 @@ begin
       Continue;
     end;
 
-    LEntryDate := GetCellDataByColCaptionFromGrid(AGrid, '입사일자', i);
-    LWagePerHour := GetCellDataByColCaptionFromGrid(AGrid, '시급', i);
-    LPaidDayOff := GetCellDataByColCaptionFromGrid(AGrid, '유급휴일', i);
-    LAnnualLeave := GetCellDataByColCaptionFromGrid(AGrid, '년차', i);
-    LWeeklyLeave := GetCellDataByColCaptionFromGrid(AGrid, '주차', i);
-    LOverTime := GetCellDataByColCaptionFromGrid(AGrid, '연장', i);
-    LWorkHour := GetCellDataByColCaptionFromGrid(AGrid, '합계', i);
-
-    LRange := LWorksheet.range['D2'];
-    LRange.FormulaR1C1 := LDateStr;
-    LRange := LWorksheet.range['F5'];
-    LRange.FormulaR1C1 := LEmployeeName;
-    LRange := LWorksheet.range['O5'];
-    LRange.FormulaR1C1 := LEntryDate;
-    LRange := LWorksheet.range['E7'];
-    LRange.FormulaR1C1 := LWagePerHour;
-    LRange := LWorksheet.range['K9'];
-    LRange.FormulaR1C1 := LPaidDayOff;
-    LRange := LWorksheet.range['M9'];
-    LRange.FormulaR1C1 := LAnnualLeave;
-    LRange := LWorksheet.range['O9'];
-    LRange.FormulaR1C1 := LWeeklyLeave;
-    LRange := LWorksheet.range['G9'];
-    LRange.FormulaR1C1 := LOverTime;
-    LRange := LWorksheet.range['A9'];
-    LRange.FormulaR1C1 := LWorkHour;
-  end;
+    SetPayData2ExcelRptBySheetNameFromGridRow(AGrid, i, ADate, LWorkSheet);
+  end;//for
 
 //  try
 //      LWorkBegin := GetCellDataByColCaptionFromGrid(AGrid, '근무 시작', LFindFromRow);
@@ -261,6 +240,173 @@ begin
 ////    LExcel.quit;
 ////    LExcel:=unassigned;
 //  end;
+end;
+
+function SetPayData2ExcelRptBySheetNameFromGridRow(AGrid: TNextGrid; ARow: integer;
+  ADate: TDate; AWorkSheet: OLEVariant): integer;
+var
+  LRange, LRange2: OleVariant;
+  i, ItemCount, LCol, LCol2, LRangeRow: integer;
+  LEmployeeName, LEntryDate, LWagePerHour, LPaidDayOff, LAnnualLeave, LWeeklyLeave,
+  LOverTime, LWorkHour, LWorkHour_Night, LWorkHour_Holiday, LWorkHour_Add,
+  LRangeStr, LDateStr, LValue, LRangeStr2: string;
+begin
+  LDateStr := FormatDateTime('yyyy년 mm월 급여명세표', ADate);
+
+  LEmployeeName := GetCellDataByColCaptionFromGrid(AGrid, '성명', ARow);
+  LEntryDate := GetCellDataByColCaptionFromGrid(AGrid, '입사일자', ARow);
+  LWagePerHour := GetCellDataByColCaptionFromGrid(AGrid, '시급', ARow);
+  LPaidDayOff := GetCellDataByColCaptionFromGrid(AGrid, '유급휴일', ARow);
+  LAnnualLeave := GetCellDataByColCaptionFromGrid(AGrid, '년차', ARow);
+  LWeeklyLeave := GetCellDataByColCaptionFromGrid(AGrid, '주차', ARow);
+  LOverTime := GetCellDataByColCaptionFromGrid(AGrid, '연장시간', ARow);
+  LWorkHour := GetCellDataByColCaptionFromGrid(AGrid, '근로시간', ARow);
+  LWorkHour_Night := GetCellDataByColCaptionFromGrid(AGrid, '야간근로시간', ARow);
+  LWorkHour_Holiday := GetCellDataByColCaptionFromGrid(AGrid, '휴일근로시간', ARow);
+  LWorkHour_Add := GetCellDataByColCaptionFromGrid(AGrid, '가급시간', ARow);
+
+  LRange := AWorkSheet.range['D2'];
+  LRange.FormulaR1C1 := LDateStr;
+  LRange := AWorkSheet.range['F5'];
+  LRange.FormulaR1C1 := LEmployeeName;
+  LRange := AWorkSheet.range['O5'];
+  LRange.FormulaR1C1 := LEntryDate;
+  LRange := AWorkSheet.range['E7'];
+  LRange.FormulaR1C1 := LWagePerHour;
+  LRange := AWorkSheet.range['A9'];
+  LRange.FormulaR1C1 := LWorkHour;
+  LRange := AWorkSheet.range['C9'];
+  LRange.FormulaR1C1 := LWorkHour_Night;
+  LRange := AWorkSheet.range['E9'];
+  LRange.FormulaR1C1 := LWorkHour_Holiday;
+  LRange := AWorkSheet.range['G9'];
+  LRange.FormulaR1C1 := LOverTime;
+  LRange := AWorkSheet.range['I9'];
+  LRange.FormulaR1C1 := LWorkHour_Add;
+  LRange := AWorkSheet.range['K9'];
+  LRange.FormulaR1C1 := LPaidDayOff;
+  LRange := AWorkSheet.range['M9'];
+  LRange.FormulaR1C1 := LAnnualLeave;
+  LRange := AWorkSheet.range['O9'];
+  LRange.FormulaR1C1 := LWeeklyLeave;
+
+  //수당 항목(가변적임) 채우기
+  LCol := GetColIdxByColCaptionFromGrid(AGrid, '시간총액');
+
+  if LCol > 0 then
+  begin
+    //Header Caption이 '시간총액' 이후 '수당합계' 까지 수당 항목임
+    Inc(LCol);
+
+    //수당 항목의 마지막 Column Index 가져옴
+    LCol2 := GetColIdxByColCaptionFromGrid(AGrid, '수당합계');
+
+    //Header Caption '수당합계' 가 '시간총액' 뒤에 있어야 함
+    if (LCol2 > 0) and (LCol < LCol2) then
+    begin
+      Dec(LCol2);
+      ItemCount := LCol2 - LCol + 1;
+
+      //수당 항목이 10개 이상이면 엑셀 Row 추가
+      if ItemCount > 10 then
+      begin
+        for i := 10 to ItemCount do
+          XlsRangeCopyNInsert2WS(AWorkSheet, 'B19:P19', 'B20:P20');
+      end;
+
+      LRangeRow := 11;
+
+      for i := LCol to LCol2 do
+      begin
+        //수당 항목 기입
+        LRangeStr := 'L' + IntToStr(LRangeRow);
+        LRange := AWorkSheet.range[LRangeStr];
+        LRange.FormulaR1C1 := AGrid.Columns.Item[i].Header.Caption;
+
+        //수당 금액 기입
+        LRangeStr := 'P' + IntToStr(LRangeRow);
+        LRange := AWorkSheet.range[LRangeStr];
+        LRange.FormulaR1C1 := AGrid.Cells[i, ARow];
+
+        Inc(LRangeRow);
+      end;
+    end;
+  end;
+
+  //공제 항목 채우기
+  LCol := GetColIdxByColCaptionFromGrid(AGrid, '총급여액');
+
+  if LCol > 0 then
+  begin
+    //Header Caption이 '총급여액' 이후 Grid의 마지막 Column 까지 공제 항목임
+    Inc(LCol);
+    //25행부터 시작해서 '국민연금'이 있는 행을 검색함
+    LRangeRow := GetRowidxByCellValueFromWS(AWorkSheet, '국민연금', 25);
+    LRangeStr2 := 'A' + IntToStr(LRangeRow + 4) + ':T' + IntToStr(LRangeRow + 4);
+
+    LCol2 := 0;
+
+    for i := LCol to AGrid.Columns.Count - 1 do
+    begin
+      LDateStr := AGrid.Columns.Item[i].Header.Caption;
+      LValue := AGrid.Cells[i, ARow];
+
+      if (LDateStr = '국민연금') or (LDateStr = '건강보험') or
+        (LDateStr = '고용보험') or (LDateStr = '갑근세') or (LDateStr = '주민세') then
+        LRangeStr := 'F';
+
+      if LRangeRow <> -1 then
+      begin
+        if LDateStr = '국민연금' then
+          ItemCount := LRangeRow
+        else if LDateStr = '건강보험' then
+          ItemCount := LRangeRow+1
+        else if LDateStr = '고용보험' then
+          ItemCount := LRangeRow+2
+        else if LDateStr = '갑근세' then
+          ItemCount := LRangeRow+3
+        else if LDateStr = '주민세' then
+          ItemCount := LRangeRow+4
+        else
+        begin
+          if LValue = '' then
+            Continue;
+
+          if LDateStr = '공제액계' then
+            Break;
+
+          ItemCount := LRangeRow + LCol2;
+
+          //엑셀파일 내 공제내용은 기본이 5행임, 고로 5보다 크면 행을 추가 해야함
+          if LCol2 > 4 then
+          begin
+            LRangeStr := 'A' + IntToStr(LRangeRow + LCol2-1) + ':T' + IntToStr(LRangeRow + LCol2-1);
+            LRangeStr2 := 'A' + IntToStr(LRangeRow + LCol2) + ':T' + IntToStr(LRangeRow + LCol2);
+            XlsRangeCopyNInsert2WS(AWorkSheet, LRangeStr, LRangeStr2);
+            LRange := AWorkSheet.range[LRangeStr2];
+            LRange.FormulaR1C1 := '';  //새로 추가한 셀의 내용을 비움
+          end;
+
+          //공제 항목을 엑셀에 추가함
+          LRangeStr := 'K' + IntToStr(ItemCount);
+          LRange := AWorkSheet.range[LRangeStr];
+          LRange.FormulaR1C1 := LDateStr;
+
+          LRangeStr := 'P';
+
+          Inc(LCol2);
+        end;
+
+        LRangeStr := LRangeStr + IntToStr(ItemCount);
+        LRange := AWorkSheet.range[LRangeStr];
+        LRange.FormulaR1C1 := LValue;
+      end;
+    end;//for
+
+    LRange := AWorkSheet.range[LRangeStr2];
+    //xlEdgeBottom, xlContinuous, xlThick
+    SetExcelCellRangeSingleBorder(LRange, 9, 1, 4);
+  end;
 end;
 
 end.

@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{52893E21-68C9-4F9E-BE63-087AC523F0B2}</ProjectGuid>
+        <ProjectGuid>{54C22398-E096-4B40-ACCE-93E91216E765}</ProjectGuid>
         <ProjectVersion>15.3</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <MainSource>HiMTech.dpr</MainSource>
@@ -74,7 +74,7 @@
         <VerInfo_Release>1</VerInfo_Release>
         <VerInfo_AutoIncVersion>true</VerInfo_AutoIncVersion>
         <DCC_Define>USE_SIGFROMREGISTRY;DEF_CRYPT_ALL;$(DCC_Define)</DCC_Define>
-        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.0.1.0;InternalName=lfS525wdRPCfT2ubBLZ2t+n7eq6SmwDpQdnJlrleQwB0ZJoa1jkUM7icsYtxly3T;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=gdPlugCB0+W6cDZmMVFkYzhTUDJtQ2dlQ2pEWjFDOEZaVWFEMnVqb3JHRGRXNWlVL3AzUVJITzdyblljVUExRGdvL0thTFY3bkJuYlIvS2Y2Rkw0cWtXdUtDZFAycjQrMXovNldTYzIwWUMzWThOUzFCeUlRemRXT1pvOVhuODdwU3E1clpDbXQxN2NmdVRqa2pRWmV4OHBLMTV5SVJSMWFFM2RuNFBMeHpIZDBuU2hUeUd2aDNFVEE3SXFnOXVZbmlrVk9sNkl4NytXRm1FeHFNMjkrTzU4RGp5TGhHSmpsRExMNFJkUnRvNnFZUFZaTTU5eThiQ2ZoajdGSUNqR2M4TmlFZS9oRFJVbnRQK3FJN2VNb0xPTE5mTndBYXNONHBxNXNkQjdiM0U2UG81dW1UNnZFZEt4V1FrREYrSWJWTHpydFl6a1R3eS9aQUIwZXorMjMyWGNRWG9Lazg4ZzRsRi80RzQ2Tzk5NzlESXpDb0dWZG1tQmJ3Y2JWcTFCOGJUbEk4a291amVIRFpkRDlwcDdmTkNac2I4bW0rZVEwK0hiN0R5ZUkydGRNQXBybU9JST0=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.0.1.0;InternalName=lfS525wdRPCfT2ubBLZ2t+n7eq6SmwDpQdnJlrleQwB0ZJoa1jkUM7icsYtxly3T;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=xU132QDFTXfZcDZmMVFkYzhTUDJtQ2dlQ2pEWjFDOEZaVUtEMnVqb3JHRGRXNWlVL3AzUXpwZTZNVHdHSHBtb3BxOUpjS2ZGZEwvcmRIdWZIY1paQTRtcVI5LzZOQmtHcStTVFlEdjU5RUxxSmI3Rnd0ejdlQmVYL3IwengrQ29IN0cyTEpMdkVDTWRvWmpuUW0zOVpLSkdWZnc4Y0lERnhFdTUvd2xOcHhHbWliaHJPSHNqWXlxTU1RbS9XQm4vQTREUmo3d28vVFpZeVd0TW11aFpHRUN1S3hiMmlGdk9CVHBxNmFoSVh5ZGVNU25Wd2c3c0QwdCtIcEJadm5CVy9YVlZtZ3lMN2l5NW1ZaXV5QnNOSFgwcE1la3d1ZU5HRC9XR05MaWM5RVF4RWtNdXZ4OTVhQVdNaitpcFhNejN0MUFvamkzRDBvR2x4OU13WE9wRFBKNGFvanVzUnVKWlVyTFM5ek9wOE9SOENjNkVrZnNscFFpZTdTakFMNjkxUTV2QzIvVi92WGw0WjgrSVRGdDhNQ2d3WXhIaDFXWmkrN3JGK0hOa20zZEIvVGhCNFBYcz0=</VerInfo_Keys>
         <DCC_ExeOutput>.\Bin</DCC_ExeOutput>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>

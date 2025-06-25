@@ -17,7 +17,7 @@ uses
   OtlCommon, TimerPool,
   mormot.core.base, mormot.orm.base, mormot.core.variants, mormot.core.json,
   mormot.core.collections, mormot.core.unicode, mormot.core.os,
-  thundax.lib.actions_pjh, CPort, HotKeyManager, UnitSendInputHelper,
+  thundax.lib.actions_pjh, HotKeyManager, UnitSendInputHelper,
   UnitMacroListClass2, UnitNextGridFrame, Vcl.Buttons, Vcl.ToolWin, UnitAction2,
   ralarm, GpCommandLineParser, UnitMacroConfigClass2, UnitSerialCommThread,
   Winapi.Hooks, FrmEventCaptureConfig, System.Actions;

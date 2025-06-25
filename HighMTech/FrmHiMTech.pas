@@ -56,6 +56,7 @@ type
     OpenDialog1: TOpenDialog;
     JvLabel1: TJvLabel;
     DateTimePicker1: TDateTimePicker;
+    N5: TMenuItem;
 
     procedure FormShow(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -69,6 +70,7 @@ type
     procedure About1Click(Sender: TObject);
     procedure N3Click(Sender: TObject);
     procedure N4Click(Sender: TObject);
+    procedure N5Click(Sender: TObject);
   private
     FEgg: TEasternEgg;
 
@@ -205,6 +207,11 @@ begin
     DataTypeRG.ItemIndex := Ord(hmtdtPayRollSheet) - 1;
     ImportPaySlipData2GridFromXlsFile(OpenDialog1.FileName, NextGrid1);
   end;
+end;
+
+procedure THiMTechF.N5Click(Sender: TObject);
+begin
+  MakeHiMTechReport2ExcelByDataTypeFromGrid(NextGrid1, DataTypeRG.ItemIndex+1, DateTimePicker1.Date, True);
 end;
 
 procedure THiMTechF.NextGrid1KeyDown(Sender: TObject; var Key: Word;

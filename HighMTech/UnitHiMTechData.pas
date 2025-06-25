@@ -9,7 +9,7 @@ const
   FILE_NAME_WORKTIMETAG = '일일근무현황';
   XLS_NAME_PAYROLLSHEET = '급여대장';
   FILE_NAME_SALARYSTATEMENT = '급여명세서';
-  SHEET_NAME_PAYROLLSHEET = '금월급여대장';
+  SHEET_NAME_PAYROLLSHEET = '금월급여대장 (2)';
 
 type
   THiMTechDataType = (hmtdtNull, hmtdtworkTimeTag, hmtdtPayRollSheet);

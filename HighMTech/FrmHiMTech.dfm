@@ -537,7 +537,6 @@ object HiMTechF: THiMTechF
       Width = 97
       Height = 21
       Date = 45802.494433263890000000
-      Format = 'yyyy-mm'
       Time = 45802.494433263890000000
       TabOrder = 10
     end
@@ -899,9 +898,10 @@ object HiMTechF: THiMTechF
     Caption = ''
     HeaderSize = 23
     HighlightedTextColor = clHotLight
-    Options = [goGrid, goHeader, goSelectFullRow]
+    Options = [goGrid, goHeader, goMultiSelect, goSelectFullRow]
     RowSize = 18
     PopupMenu = PopupMenu1
+    SelectionColor = clYellow
     TabOrder = 2
     TabStop = True
     OnKeyDown = NextGrid1KeyDown
@@ -1000,6 +1000,10 @@ object HiMTechF: THiMTechF
   object PopupMenu1: TPopupMenu
     Left = 120
     Top = 152
+    object N5: TMenuItem
+      Caption = #49440#53469#54620' '#49324#50896'('#46308') '#44553#50668' '#47749#49464#49436' '#52636#47141
+      OnClick = N5Click
+    end
   end
   object OpenDialog1: TOpenDialog
     Left = 56
