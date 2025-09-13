@@ -128,6 +128,8 @@ procedure DestroyOLEmailMsg;
 procedure GetContainDataNDirFromID(AEntryID: string; out AConData, AProcDir: integer);
 //function GetEmailCountFromDBKey(ADBKey: string): integer;
 function GetEmailCountFromTaskID(ATaskID: TID): integer;
+function CheckIfExistInDBByClaimNoFromDB(const AHullNo, AClaimNo: string): Boolean;
+function UpdateClaimNoByVesselInfoFromDB(const AHullNo, AOriginalClaimNo, AChangedClaimNo: string): integer;
 
 function AddOLMail2DBFromDroppedMail(AJson: string;
   AAddedMailList: TStringList; AFromRemote: Boolean=False): Boolean;
@@ -406,6 +408,40 @@ begin
     if LSQLEmailMsg.IsUpdate then
     begin
       Result := LSQLEmailMsg.fFill.Table.RowCount;
+    end;
+  finally
+    FreeAndNil(LSQLEmailMsg);
+  end;
+end;
+
+function CheckIfExistInDBByClaimNoFromDB(const AHullNo, AClaimNo: string): Boolean;
+var
+  LSQLEmailMsg: TSQLOLEmailMsg;
+begin
+  LSQLEmailMsg:= TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm, 'HullNo = ? and ClaimNo = ?', [AHullNo, AClaimNo]);
+
+  try
+    Result := LSQLEmailMsg.FillOne;
+  finally
+    FreeAndNil(LSQLEmailMsg);
+  end;
+end;
+
+function UpdateClaimNoByVesselInfoFromDB(const AHullNo, AOriginalClaimNo, AChangedClaimNo: string): integer;
+var
+  LSQLEmailMsg: TSQLOLEmailMsg;
+begin
+  Result := 0;
+
+  LSQLEmailMsg:= TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm, 'HullNo = ? and ClaimNo = ?', [AHullNo, AOriginalClaimNo]);
+
+  try
+    while LSQLEmailMsg.FillOne do
+    begin
+      LSQLEmailMsg.ClaimNo := AChangedClaimNo;
+
+      if g_OLEmailMsgDB.Update(LSQLEmailMsg) then
+        Inc(Result);
     end;
   finally
     FreeAndNil(LSQLEmailMsg);

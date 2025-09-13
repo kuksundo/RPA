@@ -58,6 +58,7 @@ type
     procedure ShowObject(AOLAppointRec: TOLObjectRec);
 
     procedure CreateOLMail(AOLMailRec: TOLMailRec);
+    procedure ReplyOLMail(ARec: TReplyForwardRecord);
 
     procedure AssignItemFieldByOLObjKind(AObjectItem: OLEVariant; AOLObjRec: TOLObjectRec; AItem: Integer);
 
@@ -77,6 +78,8 @@ type
     procedure ProcessGotoFolder(AMsg: TOmniMessage);
     procedure ProcessUnReadMailListFromFolder(AMsg: TOmniMessage);
     procedure ProcessCheckExistClaimNoInDB(AMsg: TOmniMessage);
+    procedure ProcessChangeFolderName(AMsg: TOmniMessage);
+    procedure ProcessReplyMail(AMsg: TOmniMessage);
   public
     constructor Create(commandQueue, responseQueue, sendQueue: TOmniMessageQueue; AFormHandle: THandle);
     destructor Destroy(); override;
@@ -237,10 +240,10 @@ procedure TOLControlWorker.CreateOLMail(AOLMailRec: TOLMailRec);
 var
   LMailItem:OLEVariant;
 begin
-  if VarIsNull(FOLCalendarFolder) or VarIsEmpty(FOLCalendarFolder) then
-  begin
-    FOLCalendarFolder := FOLMAPINameSpace.GetDefaultFolder(olFolderCalendar);
-  end;
+//  if VarIsNull(FOLCalendarFolder) or VarIsEmpty(FOLCalendarFolder) then
+//  begin
+//    FOLCalendarFolder := FOLMAPINameSpace.GetDefaultFolder(olFolderCalendar);
+//  end;
 
   LMailItem := FOutlook.CreateItem(olMailItem);
 
@@ -835,6 +838,61 @@ begin
   ProcessRespondData(LOmniMsg);
 end;
 
+procedure TOLControlWorker.ProcessChangeFolderName(AMsg: TOmniMessage);
+var
+  LValue: TOmniValue;
+  LOLFolderRec: TOLFolderRec;
+  LOLRespondRec: TOLRespondRec;
+  LOmniMsg: TOmniMessage;
+  LOriginalFolderPath, LNewFolderPath, LNewFolderName: string;
+  LFolder   //MAPIFolder
+  : OLEVariant;
+begin
+  //FSenderHandle을 받음
+  LOLFolderRec := AMsg.MsgData.ToRecord<TOLFolderRec>;
+  LOriginalFolderPath := LOLFolderRec.FRootPath + ';' + LOLFolderRec.FSubFolderPath;
+  //LOriginalFolderPath: '\\great.park@hd.com;SHI8151\098'
+  if CheckIfExistFolder(LOriginalFolderPath) then
+  begin
+    LNewFolderPath := LOLFolderRec.FRootPath2 + ';' + LOLFolderRec.FSubFolderPath2;
+    //폴더가 이미 존재하면 이름 변경 안함
+    if CheckIfExistFolder(LNewFolderPath) then
+    begin
+      LOLFolderRec.FResultCode := -1; //Exist Error
+      LOLFolderRec.FFolderName := LNewFolderPath;
+      LOLFolderRec.FResultMsg := 'Folder Already Exist : [' + LNewFolderPath + '] => TOLControlWorker.ProcessChangeFolderName()';
+      Log2MainComm(LOLFolderRec.FResultMsg);
+    end
+    else
+    begin
+      //세미콜론을 없애고 "\" 추가하여 하나로 합침 (\\great.park@hd.com\SHI8151\098)
+      LOriginalFolderPath := GetFolderPathFromRootNSubFolder(LOriginalFolderPath);
+      LFolder := GetFolderObjectFromPath(LOriginalFolderPath);
+      LNewFolderName := GetSubStringAfterFromRevPos('\', LOLFolderRec.FSubFolderPath2);
+      LFolder.Name := LNewFolderName;
+      LOLFolderRec.FFolderName := LNewFolderName;
+      LOLFolderRec.FResultCode := 1;
+      Log2MainComm('Folder Name Changed : [' + LOriginalFolderPath + '] => [' + LNewFolderPath + ']');
+    end;
+  end
+  else
+  begin
+    LOLFolderRec.FResultCode := -2; //Original Folder Not Exist Error
+    LOLFolderRec.FFolderName := LOriginalFolderPath;
+    LOLFolderRec.FResultMsg := 'Original Folder Not Exist : [' + LOriginalFolderPath + '] => TOLControlWorker.ProcessChangeFolderName()';
+    Log2MainComm(LOLFolderRec.FResultMsg);
+  end;
+
+  LOLRespondRec.FID := AMsg.MsgID;
+  LOLRespondRec.FMsg := RecordSaveJson(LOLFolderRec, TypeInfo(TOLFolderRec));
+  LOLRespondRec.FSenderHandle := FormHandle;
+
+  LValue := TOmniValue.FromRecord(LOLRespondRec);
+  LOmniMsg := TOmniMessage.Create(Ord(olrkChangeFolderName), LValue);
+
+  ProcessRespondData(LOmniMsg);
+end;
+
 procedure TOLControlWorker.ProcessCheckExistClaimNoInDB(AMsg: TOmniMessage);
 var
   LValue: TOmniValue;
@@ -888,13 +946,19 @@ begin
     olcCheckExistClaimNoInDB: begin
       ProcessCheckExistClaimNoInDB(AMsg);
     end;
+    olcChangeFolderName: begin
+      ProcessChangeFolderName(AMsg);
+    end;
+    olcReplyMail: begin
+      ProcessReplyMail(AMsg);
+    end;
   end;
 end;
 
 procedure TOLControlWorker.ProcessCreateMail(AMsg: TOmniMessage);
 var
   LOLMailRec: TOLMailRec;
-  LOLRespondRec: TOLRespondRec;
+//  LOLRespondRec: TOLRespondRec;
   LOmniMsg: TOmniMessage;
 begin
   LOLMailRec := AMsg.MsgData.ToRecord<TOLMailRec>;
@@ -1061,6 +1125,17 @@ begin
 //  LDict['LocalStoreId'];
 end;
 
+procedure TOLControlWorker.ProcessReplyMail(AMsg: TOmniMessage);
+var
+  LRec: TReplyForwardRecord;
+  LOmniMsg: TOmniMessage;
+begin
+  LRec := AMsg.MsgData.ToRecord<TReplyForwardRecord>;
+  FormHandle := LRec.FSenderHandle;  //FrameOLEmail Handle임
+
+  ReplyOLMail(LRec);
+end;
+
 procedure TOLControlWorker.ProcessRespondData(AMsg: TOmniMessage);
 begin
   //MainForm에 값을 전달함
@@ -1112,7 +1187,7 @@ end;
 procedure TOLControlWorker.ProcessShowMailContents(AMsg: TOmniMessage);
 var
   LEntryIdRecord: TEntryIdRecord;
-  LOLRespondRec: TOLRespondRec;
+//  LOLRespondRec: TOLRespondRec;
   LOmniMsg: TOmniMessage;
 //  LStore: OLEVariant;//Store;
 begin
@@ -1127,6 +1202,24 @@ begin
 //  LValue := TOmniValue.FromRecord(LOLRespondRec);
 //  LOmniMsg := TOmniMessage.Create(Ord(olrkSelMail4Explore), LValue);
 //  ProcessRespondData(LOmniMsg);
+end;
+
+procedure TOLControlWorker.ReplyOLMail(ARec: TReplyForwardRecord);
+var
+  LMailItem:OLEVariant;
+begin
+  LMailItem := FOLMAPINameSpace.GetItemFromID(ARec.FEntryId, ARec.FStoreId);// as MailItem;
+
+  if not VarIsNull(LMailItem) then
+  begin
+    case ARec.FMailAction of
+      olReply : LMailItem.Reply;
+      olReplyAll : LMailItem.ReplyAll;
+      olForward : LMailItem.Forward;
+      olReplyFolder : ;
+      olRespond : ;
+    end;
+  end;
 end;
 
 procedure TOLControlWorker.RespondEnqueueAndNotifyMainComm(AMsg: TOmniMessage;

@@ -109,6 +109,28 @@ type
     FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
   end;
 
+  TOLFolderRec = packed record
+    FRootPath,      //메일 사서함()
+    FSubFolderPath, //하위 폴더
+    FRootPath2,     //신규 메일 사서함()
+    FSubFolderPath2 //신규 하위 폴더
+    : WideString;
+    FFolderName, FResultMsg: string;
+    FID, FResultCode: integer;
+    FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
+  end;
+
+  TReplyForwardRecord = packed record
+    FEntryId,     //Email EntryId
+    FStoreId,     //Email StoreId
+    FHTMLBody
+    : string;
+    FMailAction,  //0: olReply, 1: olReplyAll, 2: olForward, 3: olReplyFolder, 4: olRespond
+    FMagType      //UnitHiASOLUtil.GetEmailBody()의 AMailType과 동일함
+    : integer;
+    FSenderHandle: THandle; //메세지를 보내는 윈도우의 핸들
+  end;
+
   TOLObjectKind = (olobjAppointment, olobjTask, olobjMeeting, olobjEvent, olobjNote, olobjContact, olobjVCard);
 
   TOLCommandKind = (
@@ -124,6 +146,8 @@ type
     olcGetUnReadMailListFromFolder,
     //FrameOLEmailList4Ole.grid_Email의 HullNo+ClaimNo가 HiconisASManageR.db3에 존재하는지 Check함
     olcCheckExistClaimNoInDB,
+    olcChangeFolderName,
+    olcReplyMail,
     olckFinal);
   TOLRespondKind = (
     olrkInitVar,
@@ -137,6 +161,8 @@ type
     olrkGotoFolder,
     olrkUnReadMailList4Folder,
     olrkUpdateExistClaimNo2Grid,
+    olrkChangeFolderName,
+    olrkReplyMail,
     olrkFinal
     );
 
@@ -163,6 +189,8 @@ const
       'Go To Folder',
       'Get UnRead MailItem From Folder',
       'Get If CalimNo is exist in DB',
+      'Change Foler Name',
+      'Reply Mail',
       ''
     );
   R_OLRespondKind : array[Low(TOLRespondKind)..High(TOLRespondKind)] of string =
@@ -178,6 +206,8 @@ const
       'Go To Folder',
       'UnRead Mail Item',
       'Update ClaimNo Exist',
+      'Change Foler Name',
+      'Reply Mail',
       ''
     );
 
